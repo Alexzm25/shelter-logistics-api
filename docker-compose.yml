@@ -1,0 +1,50 @@
+services:
+  api:
+    container_name: ${APP_CONTAINER_NAME}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE}
+        APP_WORKDIR: ${APP_WORKDIR}
+        UVICORN_PORT: ${UVICORN_PORT}
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    command: >
+      sh -c "python -m compileall -q ${APP_SOURCE_DIR} &&
+      uvicorn ${UVICORN_APP} --host ${UVICORN_HOST} --port ${UVICORN_PORT}"
+    ports:
+      - "${APP_PORT}:${UVICORN_PORT}"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    container_name: ${POSTGRES_CONTAINER_NAME}
+    image: ${POSTGRES_IMAGE}
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_CONTAINER_PORT}"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -p $${POSTGRES_CONTAINER_PORT}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  db_data:
+    name: ${POSTGRES_DATA_VOLUME}
