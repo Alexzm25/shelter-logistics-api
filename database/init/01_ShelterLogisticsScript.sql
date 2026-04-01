@@ -1,61 +1,62 @@
 ﻿/*
 Created: 3/1/2026
 Modified: 3/22/2026
-Model: PostgreSQL 12
-Database: PostgreSQL 12
+Model: PostgreSQL
+Database: PostgreSQL
 */
 
 -- Create user data types section -------------------------------------------------
 
 CREATE TYPE "health_status_enum" AS ENUM
-  ( 'SANO'
-'HERIDO'
-'ENFERMO'
-'MUERTO' )
-;
+( 'SANO',
+  'HERIDO',
+  'ENFERMO',
+  'MUERTO' 
+);
 
 CREATE TYPE "current_status_enum" AS ENUM
-  ( 'TRABAJANDO'
-'EN EXPLORACIÓN'
-'TRASLADANDO RECURSOS'
-'LIBRE' )
-;
+( 'TRABAJANDO',
+  'EN EXPLORACIÓN',
+  'TRASLADANDO RECURSOS',
+  'LIBRE' 
+);
 
 CREATE TYPE "resource_category_enum" AS ENUM
-  ( 'COMIDA'
-'BEBIDA'
-'MEDICINA' )
-;
+( 'ALIMENTO',
+  'BEBIDAS',
+  'SEMILLAS',
+  'MEDICINAS' 
+);
 
 CREATE TYPE "movement_type_enum" AS ENUM
-  ( 'SALIDA'
-'INGRESO'
-'TRANSFERENCIA' )
-;
+( 'SALIDA',
+  'INGRESO',
+  'TRANSFERENCIA'
+);
 
 CREATE TYPE "request_status_enum" AS ENUM
-  ( 'PENDIENTE'
-'APROBADO'
-'RECHAZADO' )
-;
+( 'PENDIENTE',
+  'APROBADO',
+  'RECHAZADO' 
+);
 
 CREATE TYPE "transfer_status_enum" AS ENUM
-  ( 'EN PREPARACIÓN'
-'DE CAMINO'
-'LLEGÓ' )
-;
+( 'EN PREPARACIÓN',
+  'DE CAMINO',
+  'LLEGÓ' 
+);
 
 CREATE TYPE "exploration_status_enum" AS ENUM
-  ( 'EN PROCESO'
-'COMPLETADA'
-'CANCELADA'
- )
-;
+( 'EN PROCESO',
+  'COMPLETADA',
+  'CANCELADA'
+);
 
 CREATE TYPE "ai_decision_enum" AS ENUM
-  ( 'APROBADO'
-'RECHAZADO' )
-;
+( 
+  'APROBADO',
+  'RECHAZADO'
+);
 
 -- Create tables section -------------------------------------------------
 
@@ -185,7 +186,7 @@ COMMENT ON COLUMN "resource"."id" IS 'Resource''s id'
 ;
 COMMENT ON COLUMN "resource"."name" IS 'Resource''s name'
 ;
-COMMENT ON COLUMN "resource"."category" IS 'Resource''s category (''COMIDA'', ''BEBIDA'', ''MEDICINA'')'
+COMMENT ON COLUMN "resource"."category" IS 'Resource''s category (''ALIMENTOS'', ''BEBIDAS'', ''SEMILLAS'',''MEDICINAS'')'
 ;
 
 ALTER TABLE "resource" ADD CONSTRAINT "PK_resource" PRIMARY KEY ("id")
@@ -264,7 +265,7 @@ COMMENT ON COLUMN "transfer_request"."from_camp_id" IS 'Camp ID from the request
 ;
 COMMENT ON COLUMN "transfer_request"."to_camp_id" IS 'Camp ID where the request is sent'
 ;
-COMMENT ON COLUMN "transfer_request"."request_status" IS 'Request''s status (''PENDIENTE'', ''APROBADA'', ''RECHAZADA'''
+COMMENT ON COLUMN "transfer_request"."request_status" IS 'Request''s status (''PENDIENTE'', ''APROBADA'', ''RECHAZADA'')'
 ;
 COMMENT ON COLUMN "transfer_request"."transfer_status" IS 'Transfer''s status (''EN PREPARACIÓN'', ''DE CAMINO'', ''LLEGÓ'')'
 ;
@@ -305,8 +306,7 @@ COMMENT ON COLUMN "exploration"."start_date" IS 'Timestamp when the exploration 
 ;
 COMMENT ON COLUMN "exploration"."return_date" IS 'Timestamp when the explorers return to the camp'
 ;
-COMMENT ON COLUMN "exploration"."exploration_status" IS 'Exploration''s status (''EN PROCESO'', ''COMPLETADA'', ''CANCELADA'')
-'
+COMMENT ON COLUMN "exploration"."exploration_status" IS 'Exploration''s status (''EN PROCESO'', ''COMPLETADA'', ''CANCELADA'')'
 ;
 COMMENT ON COLUMN "exploration"."extra_days" IS 'Extra days of exploration if they are needed'
 ;
@@ -719,9 +719,9 @@ CREATE INDEX "IX_Relationship37" ON "production_log" ("profession_id")
 ALTER TABLE "production_log" ADD CONSTRAINT "PK_production_log" PRIMARY KEY ("id")
 ;
 
--- Table TransferParticipants
+-- Table transfer_participants
 
-CREATE TABLE "TransferParticipants"
+CREATE TABLE "transfer_participants"
 (
   "person_id" Integer NOT NULL,
   "request_id" Integer NOT NULL,
@@ -730,11 +730,11 @@ CREATE TABLE "TransferParticipants"
 WITH (
   autovacuum_enabled=true)
 ;
-COMMENT ON COLUMN "TransferParticipants"."is_transfer_active" IS 'Attribute to check if the participant is in an active transfer
+COMMENT ON COLUMN "transfer_participants"."is_transfer_active" IS 'Attribute to check if the participant is in an active transfer
 '
 ;
 
-ALTER TABLE "TransferParticipants" ADD CONSTRAINT "PK_TransferParticipants" PRIMARY KEY ("person_id","request_id")
+ALTER TABLE "transfer_participants" ADD CONSTRAINT "PK_transfer_participants" PRIMARY KEY ("person_id","request_id")
 ;
 
 -- Create foreign keys (relationships) section -------------------------------------------------
@@ -987,7 +987,7 @@ ALTER TABLE "production_log"
       ON UPDATE NO ACTION
 ;
 
-ALTER TABLE "TransferParticipants"
+ALTER TABLE "transfer_participants"
   ADD CONSTRAINT "Relationship38"
     FOREIGN KEY ("person_id")
     REFERENCES "person" ("id")
@@ -995,7 +995,7 @@ ALTER TABLE "TransferParticipants"
       ON UPDATE NO ACTION
 ;
 
-ALTER TABLE "TransferParticipants"
+ALTER TABLE "transfer_participants"
   ADD CONSTRAINT "Relationship39"
     FOREIGN KEY ("request_id")
     REFERENCES "transfer_request" ("id")

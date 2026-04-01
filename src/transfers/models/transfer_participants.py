@@ -5,7 +5,7 @@ from src.core.base import Base
 
 
 class TransferParticipant(Base):
-    __tablename__ = "TransferParticipants"
+    __tablename__ = "transfer_participants"
 
     person_id: Mapped[int] = mapped_column(Integer, ForeignKey("person.id"), primary_key=True)
     request_id: Mapped[int] = mapped_column(
