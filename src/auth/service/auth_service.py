@@ -22,5 +22,5 @@ class AuthService:
                 detail="Credenciales inválidas",
             )
 
-        access_token = create_access_token(subject=user.username)
-        return LoginResponse(access_token=access_token)
+        access_token, expires_at = create_access_token(subject=user.username)
+        return LoginResponse(access_token=access_token, expires_at=expires_at)
