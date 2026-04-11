@@ -25,6 +25,6 @@ class Person(Base):
         Enum(HealthStatusEnum, name="health_status_enum"), nullable=False
     )
     camp_entry_date: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False)
-    photo_url: Mapped[str] = mapped_column(String(250), nullable=False)
+    photo_url: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(nullable=False)
     id_card: Mapped[str] = mapped_column(String(250), nullable=False)

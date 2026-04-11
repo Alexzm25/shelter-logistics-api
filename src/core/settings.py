@@ -15,6 +15,10 @@ class Settings:
         self.jwt_access_token_expire_minutes = int(
             os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60")
         )
+        self.groq_api_key = self._get_required_env("GROQ_API_KEY")
+        self.groq_model = self._get_required_env("GROQ_MODEL")
+        self.groq_base_url = self._get_required_env("GROQ_BASE_URL")
+        self.groq_timeout_seconds = float(os.getenv("GROQ_TIMEOUT_SECONDS", "20"))
 
         if self.jwt_secret_key.lower() == "change_this_secret_key":
             raise ValueError("JWT_SECRET_KEY uses an insecure placeholder value")

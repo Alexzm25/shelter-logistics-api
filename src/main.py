@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.auth.router.auth_router import router as auth_router
+from src.persons.router.human_intake_router import router as human_intake_router
 
 
 app = FastAPI(title="shelter-logistics-api")
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(human_intake_router)
 
 
 @app.get("/")

@@ -110,7 +110,7 @@ CREATE TABLE "person"
   "current_status" "current_status_enum" NOT NULL,
   "health_status" "health_status_enum" NOT NULL,
   "camp_entry_date" Timestamp with time zone NOT NULL,
-  "photo_url" Character varying(250) NOT NULL,
+  "photo_url" Text NOT NULL,
   "is_active" Boolean NOT NULL,
   "id_card" Character varying(250) NOT NULL
 )
