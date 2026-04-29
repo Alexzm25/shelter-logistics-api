@@ -20,3 +20,7 @@ def create_access_token(subject: str) -> tuple[str, datetime]:
     payload = {"sub": subject, "exp": expire}
     token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     return token, expire
+
+
+def decode_access_token(token: str) -> dict:
+    return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.auth.router.auth_router import router as auth_router
+from src.camps.router.camp_dashboard_router import router as camp_dashboard_router
 from src.persons.router.human_intake_router import router as human_intake_router
 
 
@@ -26,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(camp_dashboard_router)
 app.include_router(human_intake_router)
 
 

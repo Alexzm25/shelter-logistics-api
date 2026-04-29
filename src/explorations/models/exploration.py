@@ -16,7 +16,12 @@ class Exploration(Base):
     )
     return_date: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     exploration_status: Mapped[ExplorationStatusEnum] = mapped_column(
-        Enum(ExplorationStatusEnum, name="exploration_status_enum"), nullable=False
+        Enum(
+            ExplorationStatusEnum,
+            name="exploration_status_enum",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
     )
     camp_id: Mapped[int] = mapped_column(ForeignKey("camp.id"), nullable=False)
     extra_days: Mapped[int] = mapped_column(Integer, nullable=False)
