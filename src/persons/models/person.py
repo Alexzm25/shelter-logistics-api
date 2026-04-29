@@ -19,7 +19,12 @@ class Person(Base):
     height: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     camp_id: Mapped[int] = mapped_column(ForeignKey("camp.id"), nullable=False)
     current_status: Mapped[CurrentStatusEnum] = mapped_column(
-        Enum(CurrentStatusEnum, name="current_status_enum"), nullable=False
+        Enum(
+            CurrentStatusEnum,
+            name="current_status_enum",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
     )
     health_status: Mapped[HealthStatusEnum] = mapped_column(
         Enum(HealthStatusEnum, name="health_status_enum"), nullable=False

@@ -21,3 +21,6 @@ class InventoryMovement(Base):
     movement_type: Mapped[MovementTypeEnum] = mapped_column(
         Enum(MovementTypeEnum, name="movement_type_enum"), nullable=False
     )
+    transfer_request_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transfer_request.id"), nullable=True
+    )

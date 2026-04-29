@@ -252,7 +252,9 @@ CREATE TABLE "transfer_request"
   "request_status" "request_status_enum" NOT NULL,
   "transfer_status" "transfer_status_enum",
   "arrival_date" Date,
-  "departure_date" Date NOT NULL
+  "departure_date" Date NOT NULL,
+  "authorized_by" Character varying(80),
+  "is_resource_transfer" Boolean DEFAULT TRUE NOT NULL
 )
 WITH (
   autovacuum_enabled=true)
@@ -438,7 +440,8 @@ CREATE TABLE "inventory_movement"
   "created_at" Timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
   "quantity" Integer NOT NULL,
   "inventory_resource_id" Integer NOT NULL,
-  "movement_type" "movement_type_enum" NOT NULL
+  "movement_type" "movement_type_enum" NOT NULL,
+  "transfer_request_id" Integer
 )
 WITH (
   autovacuum_enabled=true)
@@ -799,6 +802,14 @@ ALTER TABLE "inventory_resource"
   ADD CONSTRAINT "Relationship10"
     FOREIGN KEY ("resource_id")
     REFERENCES "resource" ("id")
+      ON DELETE NO ACTION
+      ON UPDATE NO ACTION
+;
+
+ALTER TABLE "inventory_movement"
+  ADD CONSTRAINT "Relationship38"
+    FOREIGN KEY ("transfer_request_id")
+    REFERENCES "transfer_request" ("id")
       ON DELETE NO ACTION
       ON UPDATE NO ACTION
 ;
