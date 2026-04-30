@@ -242,10 +242,13 @@ class CampDashboardService:
     def _build_inter_camp_transfers(
         db: Session, camp_id: int
     ) -> list[InterCampTransferResponse]:
+        from src.transfers.models.transfer_participants import TransferParticipant
+        
         origin_camp = aliased(Camp)
         dest_camp = aliased(Camp)
 
-        rows = (
+        # Query for resource transfers
+        resource_rows = (
             db.query(
                 TransferRequest,
                 TransferResource,
@@ -261,13 +264,31 @@ class CampDashboardService:
                 (TransferRequest.from_camp_id == camp_id)
                 | (TransferRequest.to_camp_id == camp_id)
             )
+            .filter(TransferRequest.is_resource_transfer.is_(True))
+            .order_by(TransferRequest.created_at.desc())
+            .limit(CampDashboardService.INTER_CAMP_TRANSFER_LIMIT)
+            .all()
+        )
+
+        # Query for person transfers
+        person_rows = (
+            db.query(TransferRequest)
+            .join(origin_camp, origin_camp.id == TransferRequest.from_camp_id)
+            .join(dest_camp, dest_camp.id == TransferRequest.to_camp_id)
+            .filter(
+                (TransferRequest.from_camp_id == camp_id)
+                | (TransferRequest.to_camp_id == camp_id)
+            )
+            .filter(TransferRequest.is_resource_transfer.is_(False))
             .order_by(TransferRequest.created_at.desc())
             .limit(CampDashboardService.INTER_CAMP_TRANSFER_LIMIT)
             .all()
         )
 
         transfers: list[InterCampTransferResponse] = []
-        for request, transfer_resource, resource, origin_name, destination_name in rows:
+
+        # Process resource transfers
+        for request, transfer_resource, resource, origin_name, destination_name in resource_rows:
             transfers.append(
                 InterCampTransferResponse(
                     id=request.id,
@@ -280,10 +301,50 @@ class CampDashboardService:
                     ),
                     scheduled_date=CampDashboardService._format_date(request.departure_date),
                     is_resource_transfer=request.is_resource_transfer,
+                    approved_by=request.authorized_by or "SISTEMA",
                 )
             )
 
-        return transfers
+        # Process person transfers
+        for request in person_rows:
+            participants = (
+                db.query(Person.name)
+                .join(TransferParticipant, TransferParticipant.person_id == Person.id)
+                .filter(TransferParticipant.request_id == request.id)
+                .all()
+            )
+            participant_names = ", ".join([p[0] for p in participants]) or "Sin participantes"
+            
+            origin_name = (
+                db.query(Camp.name)
+                .filter(Camp.id == request.from_camp_id)
+                .scalar() or f"Campamento {request.from_camp_id}"
+            )
+            destination_name = (
+                db.query(Camp.name)
+                .filter(Camp.id == request.to_camp_id)
+                .scalar() or f"Campamento {request.to_camp_id}"
+            )
+
+            transfers.append(
+                InterCampTransferResponse(
+                    id=request.id,
+                    origin=origin_name,
+                    destination=destination_name,
+                    resource=participant_names,
+                    quantity=len(participants),
+                    status=CampDashboardService._map_transfer_status(
+                        request.request_status, request.transfer_status
+                    ),
+                    scheduled_date=CampDashboardService._format_date(request.departure_date),
+                    is_resource_transfer=request.is_resource_transfer,
+                    approved_by=request.authorized_by or "SISTEMA",
+                )
+            )
+
+        # Sort by created_at descending and limit total
+        transfers.sort(key=lambda x: x.id, reverse=True)
+        return transfers[:CampDashboardService.INTER_CAMP_TRANSFER_LIMIT]
 
     @staticmethod
     def _map_transfer_status(

@@ -12,3 +12,4 @@ class InterCampTransferResponse(BaseModel):
     status: Literal["pending", "approved", "rejected", "in-transit"]
     scheduled_date: str
     is_resource_transfer: bool
+    approved_by: str
