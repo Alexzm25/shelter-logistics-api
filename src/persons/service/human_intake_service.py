@@ -19,6 +19,8 @@ from src.persons.schemas.human_intake_schemas import (
     EvaluationResponse,
     PersonSummaryResponse,
     ProfessionOptionResponse,
+    UpdatePersonRequest,
+    UpdatePersonResponse,
     RegisterCandidateRequest,
     RegisterCandidateResponse,
     ScoreBreakdownResponse,
@@ -125,6 +127,7 @@ class HumanIntakeService:
             evaluation=evaluation,
             created_person=HumanIntakeService._to_person_summary(db, created_person) if created_person else None,
             created_ai_log=HumanIntakeService._to_ai_log_summary(created_log),
+            message="Persona registrada correctamente" if created_person else "Candidato rechazado correctamente",
         )
 
     @staticmethod
@@ -136,6 +139,33 @@ class HumanIntakeService:
         logs_response = [HumanIntakeService._to_ai_log_summary(log) for log in logs]
 
         return DashboardResponse(people=people_response, ai_logs=logs_response)
+
+    @staticmethod
+    def update_person(db: Session, person_id: int, payload: UpdatePersonRequest) -> UpdatePersonResponse:
+        person = db.query(Person).filter(Person.id == person_id).first()
+        if not person:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Person {person_id} not found.",
+            )
+
+        person.name = payload.first_name.strip()
+        person.last_name = payload.last_name.strip()
+        person.age = payload.age
+        person.background_info = payload.background_info.strip()
+        person.weight = payload.weight
+        person.height = payload.height
+        person.id_card = (payload.id_card or "").strip() or person.id_card
+        person.photo_url = (payload.photo_url or "").strip()
+        person.health_status = HumanIntakeService._infer_health_status(payload.background_info)
+
+        db.commit()
+        db.refresh(person)
+
+        return UpdatePersonResponse(
+            person=HumanIntakeService._to_person_summary(db, person),
+            message="Persona editada correctamente"
+        )
 
     @staticmethod
     def _infer_health_status(background_info: str) -> HealthStatusEnum:

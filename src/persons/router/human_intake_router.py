@@ -7,6 +7,8 @@ from src.persons.schemas.human_intake_schemas import (
     EvaluateCandidateRequest,
     EvaluationResponse,
     ProfessionOptionResponse,
+    UpdatePersonRequest,
+    UpdatePersonResponse,
     RegisterCandidateRequest,
     RegisterCandidateResponse,
 )
@@ -43,3 +45,12 @@ def register_candidate(
     db: Session = Depends(get_db),
 ) -> RegisterCandidateResponse:
     return HumanIntakeService.register_candidate(db, payload)
+
+
+@router.patch("/people/{person_id}", response_model=UpdatePersonResponse)
+def update_person(
+    person_id: int,
+    payload: UpdatePersonRequest,
+    db: Session = Depends(get_db),
+) -> UpdatePersonResponse:
+    return HumanIntakeService.update_person(db, person_id, payload)
