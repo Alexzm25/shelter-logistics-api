@@ -43,6 +43,7 @@ class RegisterCandidateRequest(BaseModel):
 
 class ProfessionOptionResponse(BaseModel):
     name: str
+    is_critical: bool
 
 
 class PersonSummaryResponse(BaseModel):
@@ -52,6 +53,7 @@ class PersonSummaryResponse(BaseModel):
     first_name: str
     last_name: str
     age: int
+    current_status: Literal["TRABAJANDO", "EN EXPLORACIÓN", "TRASLADANDO RECURSOS", "LIBRE"]
     health_status: Literal["SANO", "HERIDO", "ENFERMO", "MUERTO"]
     profession: str
     temporary_reassignment: str | None = None
@@ -102,3 +104,23 @@ class UpdatePersonRequest(BaseModel):
 class UpdatePersonResponse(BaseModel):
     person: PersonSummaryResponse
     message: str = "Persona editada correctamente"
+
+
+class UpdatePersonStatusRequest(BaseModel):
+    health_status: Literal["SANO", "HERIDO", "ENFERMO", "MUERTO"] | None = None
+    current_status: Literal["TRABAJANDO", "EN EXPLORACIÓN", "TRASLADANDO RECURSOS", "LIBRE"] | None = None
+
+
+class UpdatePersonStatusResponse(BaseModel):
+    person: PersonSummaryResponse
+    message: str = "Estado de persona actualizado correctamente"
+
+
+class TemporaryReassignmentRequest(BaseModel):
+    profession_name: str = Field(min_length=1, max_length=50)
+    reason: str = Field(min_length=1, max_length=100)
+
+
+class TemporaryReassignmentResponse(BaseModel):
+    person: PersonSummaryResponse
+    message: str = "Reasignacion temporal actualizada correctamente"

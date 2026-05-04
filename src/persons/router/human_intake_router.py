@@ -7,8 +7,12 @@ from src.persons.schemas.human_intake_schemas import (
     EvaluateCandidateRequest,
     EvaluationResponse,
     ProfessionOptionResponse,
+    TemporaryReassignmentRequest,
+    TemporaryReassignmentResponse,
     UpdatePersonRequest,
     UpdatePersonResponse,
+    UpdatePersonStatusRequest,
+    UpdatePersonStatusResponse,
     RegisterCandidateRequest,
     RegisterCandidateResponse,
 )
@@ -54,3 +58,29 @@ def update_person(
     db: Session = Depends(get_db),
 ) -> UpdatePersonResponse:
     return HumanIntakeService.update_person(db, person_id, payload)
+
+
+@router.patch("/people/{person_id}/status", response_model=UpdatePersonStatusResponse)
+def update_person_status(
+    person_id: int,
+    payload: UpdatePersonStatusRequest,
+    db: Session = Depends(get_db),
+) -> UpdatePersonStatusResponse:
+    return HumanIntakeService.update_person_status(db, person_id, payload)
+
+
+@router.post("/people/{person_id}/temporary-reassignment", response_model=TemporaryReassignmentResponse)
+def create_temporary_reassignment(
+    person_id: int,
+    payload: TemporaryReassignmentRequest,
+    db: Session = Depends(get_db),
+) -> TemporaryReassignmentResponse:
+    return HumanIntakeService.create_temporary_reassignment(db, person_id, payload)
+
+
+@router.delete("/people/{person_id}/temporary-reassignment", response_model=TemporaryReassignmentResponse)
+def close_temporary_reassignment(
+    person_id: int,
+    db: Session = Depends(get_db),
+) -> TemporaryReassignmentResponse:
+    return HumanIntakeService.close_temporary_reassignment(db, person_id)
