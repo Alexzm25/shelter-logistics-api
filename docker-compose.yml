@@ -1,6 +1,7 @@
 services:
   api:
     container_name: ${APP_CONTAINER_NAME}
+    working_dir: ${APP_WORKDIR}
     build:
       context: .
       dockerfile: Dockerfile
@@ -17,6 +18,8 @@ services:
       uvicorn ${UVICORN_APP} --host ${UVICORN_HOST} --port ${UVICORN_PORT}"
     ports:
       - "${APP_PORT}:${UVICORN_PORT}"
+    volumes:
+      - .:${APP_WORKDIR}
     depends_on:
       db:
         condition: service_healthy
