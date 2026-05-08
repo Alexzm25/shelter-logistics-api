@@ -30,7 +30,7 @@ class GroqEvaluationService:
                         "Return only JSON with this exact schema: "
                         "{decision, score, explanation, suggested_profession, score_breakdown, applied_rules}. "
                         "Allowed decision values: APROBADO or RECHAZADO. "
-                        "Allowed suggested_profession values: MEDIC, SENTINEL, SCAVENGER, SUPPORT, NOT_ASSIGNED. "
+                        "Allowed suggested_profession values: MEDIC, EXPLORER, FARMER, NOT_ASSIGNED. "
                         "score_breakdown must include integers for resilience, medical_experience, defense_experience, context. "
                         "score must be an integer between 0 and 100."
                     ),
