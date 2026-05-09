@@ -6,6 +6,8 @@ from src.camps.router.camp_dashboard_router import router as camp_dashboard_rout
 from src.persons.router.human_intake_router import router as human_intake_router
 from src.achievement.router.achievement_router import router as achievement_router
 from src.inventory.router.inventory_router import router as inventory_router
+from src.explorations.router.exploration_router import router as exploration_router
+from src.production.router.production_router import router as production_router
 
 app = FastAPI(title="shelter-logistics-api")
 
@@ -32,7 +34,8 @@ app.include_router(camp_dashboard_router)
 app.include_router(human_intake_router)
 app.include_router(achievement_router)
 app.include_router(inventory_router)
-
+app.include_router(exploration_router)
+app.include_router(production_router)
 
 @app.get("/")
 def root() -> dict[str, str]:
