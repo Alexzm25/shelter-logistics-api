@@ -7,6 +7,8 @@ from src.auth.schemas.user_profile import UserProfileResponse
 from src.auth.service.security import create_access_token, decode_access_token, verify_password
 from src.persons.models.person import Person
 from src.camps.models.camp import Camp
+from src.persons.models.profession import Profession
+from src.persons.models.profession_assignment import ProfessionAssignment
 
 
 class AuthService:
@@ -34,12 +36,19 @@ class AuthService:
         camp = db.query(Camp).filter(Camp.id == person.camp_id).first()
         if not camp:
             raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Campamento no encontrado",
-        )
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campamento no encontrado",
+            )
 
         access_token, expires_at = create_access_token(subject=user.username)
         return LoginResponse(access_token=access_token, expires_at=expires_at, camp_id=camp.id, camp_name=camp.name)
+
+        return LoginResponse(
+            access_token=access_token,
+            expires_at=expires_at,
+            camp_id=camp.id,
+            camp_name=camp.name,
+        )
 
     @staticmethod
     def get_current_user_profile(db: Session, token: str) -> UserProfileResponse:
@@ -77,9 +86,32 @@ class AuthService:
                 detail="Persona no encontrada",
             )
 
+        profession_assignment = (
+            db.query(ProfessionAssignment)
+            .filter(
+                ProfessionAssignment.person_id == person.id,
+                ProfessionAssignment.is_active == True,
+                ProfessionAssignment.is_main_profession == True,
+            )
+            .first()
+        )
+
+        profession_name = None
+
+        if profession_assignment:
+            profession = (
+                db.query(Profession)
+                .filter(Profession.id == profession_assignment.profession_id)
+                .first()
+            )
+
+            if profession:
+                profession_name = profession.name
+
         return UserProfileResponse(
             username=user.username,
             user_id=user.id,
             person_id=user.person_id,
             camp_id=person.camp_id,
+            profession_name=profession_name,
         )

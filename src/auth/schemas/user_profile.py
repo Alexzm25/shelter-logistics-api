@@ -6,3 +6,4 @@ class UserProfileResponse(BaseModel):
     user_id: int
     person_id: int
     camp_id: int
+    profession_name: str | None = None
