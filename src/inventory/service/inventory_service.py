@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from src.camps.models.camp import Camp
+from src.inventory.enums.resource_category_enum import ResourceCategoryEnum
 from src.inventory.schemas.inventory_item_response import InventoryItemResponse
 from src.inventory.models import Inventory, InventoryResource, Resource
 
@@ -11,6 +12,7 @@ class InventoryService:
     def get_inventory_by_camp(
         db: Session,
         camp_id: int,
+        category: ResourceCategoryEnum | None = None,
     ) -> list[InventoryItemResponse]:
         camp = db.query(Camp).filter(Camp.id == camp_id).first()
 
@@ -20,14 +22,17 @@ class InventoryService:
                 detail=f"Camp {camp_id} not found",
             )
 
-        rows = (
+        query = (
             db.query(InventoryResource, Resource)
             .join(Inventory, Inventory.id == InventoryResource.inventory_id)
             .join(Resource, Resource.id == InventoryResource.resource_id)
             .filter(Inventory.camp_id == camp_id)
-            .order_by(Resource.name.asc())
-            .all()
         )
+
+        if category is not None:
+            query = query.filter(Resource.category == category)
+
+        rows = query.order_by(Resource.name.asc()).all()
 
         items: list[InventoryItemResponse] = []
 
