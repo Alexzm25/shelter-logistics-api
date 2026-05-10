@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from src.auth.models import AppUser
+from src.auth.models.role import Role
 from src.auth.schemas.login_request import LoginRequest
 from src.auth.schemas.login_response import LoginResponse
 from src.auth.schemas.user_profile import UserProfileResponse
@@ -98,6 +99,11 @@ class AuthService:
 
         profession_name = None
 
+        role_name = None
+        role = db.query(Role).filter(Role.id == user.role_id).first()
+        if role:
+            role_name = role.name
+
         if profession_assignment:
             profession = (
                 db.query(Profession)
@@ -114,4 +120,5 @@ class AuthService:
             person_id=user.person_id,
             camp_id=person.camp_id,
             profession_name=profession_name,
+            role_name=role_name,
         )

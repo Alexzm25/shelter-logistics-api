@@ -7,3 +7,4 @@ class UserProfileResponse(BaseModel):
     person_id: int
     camp_id: int
     profession_name: str | None = None
+    role_name: str | None = None
