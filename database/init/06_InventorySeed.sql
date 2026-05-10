@@ -13,9 +13,12 @@ INSERT INTO "resource" ("name", "category") VALUES
 ('Antibióticos', 'MEDICINAS'),
 ('Vendajes', 'MEDICINAS');
 
--- Inventario del campamento 1
+-- Inventario del campamento base
 INSERT INTO "inventory" ("maximum_stock", "camp_id")
-VALUES (5000, 1);
+SELECT 5000, "id"
+FROM "camp"
+WHERE "name" = 'Campamento Caolin'
+LIMIT 1;
 
 -- Recursos dentro del inventario
 INSERT INTO "inventory_resource" (
@@ -28,49 +31,65 @@ VALUES
 (
     200,
     50,
-    (SELECT id FROM "inventory" WHERE "camp_id" = 1 LIMIT 1),
+    (SELECT i.id FROM "inventory" i
+     JOIN "camp" c ON c.id = i.camp_id
+    WHERE c."name" = 'Campamento Caolin' LIMIT 1),
     (SELECT id FROM "resource" WHERE "name" = 'Agua Embotellada' LIMIT 1)
 ),
 (
     120,
     30,
-    (SELECT id FROM "inventory" WHERE "camp_id" = 1 LIMIT 1),
+    (SELECT i.id FROM "inventory" i
+     JOIN "camp" c ON c.id = i.camp_id
+    WHERE c."name" = 'Campamento Caolin' LIMIT 1),
     (SELECT id FROM "resource" WHERE "name" = 'Latas de Frijoles' LIMIT 1)
 ),
 (
     180,
     40,
-    (SELECT id FROM "inventory" WHERE "camp_id" = 1 LIMIT 1),
+    (SELECT i.id FROM "inventory" i
+     JOIN "camp" c ON c.id = i.camp_id
+    WHERE c."name" = 'Campamento Caolin' LIMIT 1),
     (SELECT id FROM "resource" WHERE "name" = 'Arroz' LIMIT 1)
 ),
 (
     90,
     20,
-    (SELECT id FROM "inventory" WHERE "camp_id" = 1 LIMIT 1),
+    (SELECT i.id FROM "inventory" i
+     JOIN "camp" c ON c.id = i.camp_id
+    WHERE c."name" = 'Campamento Caolin' LIMIT 1),
     (SELECT id FROM "resource" WHERE "name" = 'Semillas de Maíz' LIMIT 1)
 ),
 (
     70,
     20,
-    (SELECT id FROM "inventory" WHERE "camp_id" = 1 LIMIT 1),
+    (SELECT i.id FROM "inventory" i
+     JOIN "camp" c ON c.id = i.camp_id
+    WHERE c."name" = 'Campamento Caolin' LIMIT 1),
     (SELECT id FROM "resource" WHERE "name" = 'Semillas de Papa' LIMIT 1)
 ),
 (
     40,
     10,
-    (SELECT id FROM "inventory" WHERE "camp_id" = 1 LIMIT 1),
+    (SELECT i.id FROM "inventory" i
+     JOIN "camp" c ON c.id = i.camp_id
+    WHERE c."name" = 'Campamento Caolin' LIMIT 1),
     (SELECT id FROM "resource" WHERE "name" = 'Botiquín Básico' LIMIT 1)
 ),
 (
     35,
     10,
-    (SELECT id FROM "inventory" WHERE "camp_id" = 1 LIMIT 1),
+    (SELECT i.id FROM "inventory" i
+     JOIN "camp" c ON c.id = i.camp_id
+    WHERE c."name" = 'Campamento Caolin' LIMIT 1),
     (SELECT id FROM "resource" WHERE "name" = 'Antibióticos' LIMIT 1)
 ),
 (
     100,
     20,
-    (SELECT id FROM "inventory" WHERE "camp_id" = 1 LIMIT 1),
+    (SELECT i.id FROM "inventory" i
+     JOIN "camp" c ON c.id = i.camp_id
+    WHERE c."name" = 'Campamento Caolin' LIMIT 1),
     (SELECT id FROM "resource" WHERE "name" = 'Vendajes' LIMIT 1)
 );
 
