@@ -9,6 +9,10 @@ from src.ai.service.groq_evaluation_service import GroqEvaluationService
 from src.camps.models.camp import Camp  # noqa: F401
 from src.persons.enums.current_status_enum import CurrentStatusEnum
 from src.persons.enums.health_status_enum import HealthStatusEnum
+from src.persons.enums.health_work_restrictions import (
+    can_work,
+    is_valid_health_transition,
+)
 from src.persons.models.person import Person
 from src.persons.models.profession import Profession
 from src.persons.models.profession_assignment import ProfessionAssignment
@@ -144,6 +148,39 @@ class HumanIntakeService:
         return DashboardResponse(people=people_response, ai_logs=logs_response)
 
     @staticmethod
+    def get_available_people_for_profession(db: Session, profession_name: str, camp_id: int) -> list[PersonSummaryResponse]:
+        normalized_profession = profession_name.strip()
+        if not normalized_profession:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Profession name is required.",
+            )
+
+        profession = db.query(Profession).filter(Profession.name == normalized_profession).first()
+        if not profession:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Profession '{normalized_profession}' not found.",
+            )
+
+        people = (
+            db.query(Person)
+            .join(ProfessionAssignment, ProfessionAssignment.person_id == Person.id)
+            .filter(
+                Person.camp_id == camp_id,
+                Person.health_status == HealthStatusEnum.SANO,
+                Person.current_status == CurrentStatusEnum.LIBRE,
+                ProfessionAssignment.profession_id == profession.id,
+                ProfessionAssignment.is_main_profession.is_(True),
+                ProfessionAssignment.is_active.is_(True),
+            )
+            .order_by(Person.id.asc())
+            .all()
+        )
+
+        return [HumanIntakeService._to_person_summary(db, person) for person in people]
+
+    @staticmethod
     def update_person(db: Session, person_id: int, payload: UpdatePersonRequest) -> UpdatePersonResponse:
         person = db.query(Person).filter(Person.id == person_id).first()
         if not person:
@@ -189,10 +226,29 @@ class HumanIntakeService:
                 detail="At least one status field must be provided.",
             )
 
+        previous_health_status = person.health_status.value
+        next_health_status = payload.health_status or previous_health_status
+
+        is_transition_valid, transition_message = is_valid_health_transition(previous_health_status, next_health_status)
+        if not is_transition_valid:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=transition_message,
+            )
+
+        # HERIDO/ENFERMO/MUERTO no pueden trabajar; forzamos disponibilidad LIBRE.
+        if not can_work(next_health_status):
+            if payload.current_status is not None and payload.current_status != CurrentStatusEnum.LIBRE.value:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Person with health status '{next_health_status}' cannot have working current_status.",
+                )
+            person.current_status = CurrentStatusEnum.LIBRE
+
         if payload.health_status is not None:
             person.health_status = HealthStatusEnum(payload.health_status)
 
-        if payload.current_status is not None:
+        if payload.current_status is not None and can_work(next_health_status):
             person.current_status = CurrentStatusEnum(payload.current_status)
 
         db.commit()
@@ -216,44 +272,52 @@ class HumanIntakeService:
                 detail=f"Person {person_id} not found.",
             )
 
+        if person.health_status != HealthStatusEnum.SANO:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Only people with SANO health status can be temporarily reassigned.",
+            )
+
         profession = db.query(Profession).filter(Profession.name == payload.profession_name.strip()).first()
         if not profession:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Profession '{payload.profession_name}' does not exist.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Profession '{payload.profession_name}' not found.",
             )
 
-        active_temporary_assignments = (
+        # Close any existing active temporary reassignment before creating a new one
+        active_temporary_assignment = (
             db.query(ProfessionAssignment)
             .filter(
                 ProfessionAssignment.person_id == person_id,
                 ProfessionAssignment.is_active.is_(True),
                 ProfessionAssignment.is_main_profession.is_(False),
             )
-            .all()
+            .order_by(ProfessionAssignment.id.desc())
+            .first()
         )
 
-        for assignment in active_temporary_assignments:
-            assignment.is_active = False
-            assignment.end_date = date.today()
+        if active_temporary_assignment:
+            active_temporary_assignment.is_active = False
+            active_temporary_assignment.end_date = date.today()
 
-        db.add(
-            ProfessionAssignment(
-                start_date=date.today(),
-                end_date=None,
-                reason=payload.reason.strip(),
-                is_main_profession=False,
-                profession_id=profession.id,
-                person_id=person.id,
-                is_active=True,
-            )
+        # Create new temporary reassignment
+        new_temporary_assignment = ProfessionAssignment(
+            start_date=date.today(),
+            end_date=None,
+            reason=payload.reason,
+            is_main_profession=False,
+            profession_id=profession.id,
+            person_id=person_id,
+            is_active=True,
         )
+        db.add(new_temporary_assignment)
         db.commit()
         db.refresh(person)
 
         return TemporaryReassignmentResponse(
             person=HumanIntakeService._to_person_summary(db, person),
-            message="Reasignacion temporal actualizada correctamente",
+            message="Reasignación temporal creada correctamente",
         )
 
     @staticmethod
@@ -292,7 +356,7 @@ class HumanIntakeService:
 
         return TemporaryReassignmentResponse(
             person=HumanIntakeService._to_person_summary(db, person),
-            message="Reasignacion temporal cerrada correctamente",
+            message="Reasignación temporal cerrada correctamente",
         )
 
     @staticmethod
@@ -356,6 +420,51 @@ class HumanIntakeService:
             is_active=True,
         )
         db.add(assignment)
+        return True
+
+    @staticmethod
+    def _deactivate_all_active_profession_assignments(db: Session, person_id: int) -> None:
+        assignments = (
+            db.query(ProfessionAssignment)
+            .filter(
+                ProfessionAssignment.person_id == person_id,
+                ProfessionAssignment.is_active.is_(True),
+            )
+            .all()
+        )
+        for assignment in assignments:
+            assignment.is_active = False
+            assignment.end_date = date.today()
+
+    @staticmethod
+    def _restore_last_main_profession_assignment(db: Session, person_id: int) -> bool:
+        assignment = (
+            db.query(ProfessionAssignment)
+            .filter(
+                ProfessionAssignment.person_id == person_id,
+                ProfessionAssignment.is_main_profession.is_(True),
+            )
+            .order_by(ProfessionAssignment.id.desc())
+            .first()
+        )
+        if not assignment:
+            return False
+
+        active_temporary_assignments = (
+            db.query(ProfessionAssignment)
+            .filter(
+                ProfessionAssignment.person_id == person_id,
+                ProfessionAssignment.is_main_profession.is_(False),
+                ProfessionAssignment.is_active.is_(True),
+            )
+            .all()
+        )
+        for temp_assignment in active_temporary_assignments:
+            temp_assignment.is_active = False
+            temp_assignment.end_date = date.today()
+
+        assignment.is_active = True
+        assignment.end_date = None
         return True
 
     @staticmethod

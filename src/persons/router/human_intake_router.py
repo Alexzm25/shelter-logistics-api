@@ -15,6 +15,7 @@ from src.persons.schemas.human_intake_schemas import (
     DashboardResponse,
     EvaluateCandidateRequest,
     EvaluationResponse,
+    PersonSummaryResponse,
     ProfessionOptionResponse,
     TemporaryReassignmentRequest,
     TemporaryReassignmentResponse,
@@ -63,6 +64,17 @@ def get_professions(
 ) -> list[ProfessionOptionResponse]:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
     return HumanIntakeService.get_professions(db)
+
+
+@router.get("/people/available-for-profession/{profession_name}", response_model=list[PersonSummaryResponse])
+def get_available_people_for_profession(
+    profession_name: str,
+    camp_id: int = Query(default=1, ge=1),
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> list[PersonSummaryResponse]:
+    enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
+    return HumanIntakeService.get_available_people_for_profession(db, profession_name, camp_id)
 
 
 @router.post("/evaluate", response_model=EvaluationResponse)
