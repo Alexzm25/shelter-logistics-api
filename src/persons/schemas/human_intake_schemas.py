@@ -1,126 +1,42 @@
-from typing import Literal
+"""Re-export de esquemas de `persons` para compatibilidad.
 
-from pydantic import BaseModel, ConfigDict, Field
+Cada clase ahora vive en su propio módulo dentro de
+`src/persons/schemas/`. Este archivo mantiene las importaciones
+anteriores funcionando mediante reexportación.
+"""
 
+from .candidate_input import CandidateInput
+from .score_breakdown_response import ScoreBreakdownResponse
+from .evaluation_response import EvaluationResponse
+from .evaluate_candidate_request import EvaluateCandidateRequest
+from .register_candidate_request import RegisterCandidateRequest
+from .profession_option_response import ProfessionOptionResponse
+from .person_summary_response import PersonSummaryResponse
+from .ai_log_summary_response import AILogSummaryResponse
+from .dashboard_response import DashboardResponse
+from .register_candidate_response import RegisterCandidateResponse
+from .update_person_request import UpdatePersonRequest
+from .update_person_response import UpdatePersonResponse
+from .update_person_status_request import UpdatePersonStatusRequest
+from .update_person_status_response import UpdatePersonStatusResponse
+from .temporary_reassignment_request import TemporaryReassignmentRequest
+from .temporary_reassignment_response import TemporaryReassignmentResponse
 
-class CandidateInput(BaseModel):
-    first_name: str = Field(min_length=1, max_length=30)
-    last_name: str = Field(min_length=1, max_length=50)
-    age: int = Field(ge=0, le=120)
-    background_info: str = Field(min_length=1)
-    weight: float = Field(ge=0)
-    height: float = Field(ge=0)
-    id_card: str | None = None
-    photo_url: str | None = None
-    camp_id: int = Field(ge=1)
-
-
-class ScoreBreakdownResponse(BaseModel):
-    resilience: int
-    medical_experience: int
-    defense_experience: int
-    context: int
-
-
-class EvaluationResponse(BaseModel):
-    decision: Literal["APROBADO", "RECHAZADO"]
-    score: int
-    explanation: str
-    suggested_profession: str
-    score_breakdown: ScoreBreakdownResponse
-    applied_rules: list[str]
-
-
-class EvaluateCandidateRequest(BaseModel):
-    candidate: CandidateInput
-
-
-class RegisterCandidateRequest(BaseModel):
-    candidate: CandidateInput
-    human_decision: Literal["PERMITIR_INGRESO", "RECHAZAR_INGRESO"]
-    selected_profession: str | None = None
-
-
-class ProfessionOptionResponse(BaseModel):
-    name: str
-    is_critical: bool
-
-
-class PersonSummaryResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    first_name: str
-    last_name: str
-    age: int
-    current_status: Literal["TRABAJANDO", "EN EXPLORACIÓN", "TRASLADANDO RECURSOS", "LIBRE"]
-    health_status: Literal["SANO", "HERIDO", "ENFERMO", "MUERTO"]
-    profession: str
-    temporary_reassignment: str | None = None
-    weight: float
-    height: float
-    camp_id: int
-    id_card: str | None
-    photo_url: str | None
-    background_info: str
-
-
-class AILogSummaryResponse(BaseModel):
-    id: int
-    full_name: str
-    ai_decision: Literal["APROBADO", "RECHAZADO"]
-    human_decision: Literal["INGRESO_PERMITIDO", "INGRESO_RECHAZADO"]
-    human_override: bool
-    score: int
-    explanation: str
-    suggested_profession: str
-    score_breakdown: ScoreBreakdownResponse
-    applied_rules: list[str]
-
-
-class DashboardResponse(BaseModel):
-    people: list[PersonSummaryResponse]
-    ai_logs: list[AILogSummaryResponse]
-
-
-class RegisterCandidateResponse(BaseModel):
-    evaluation: EvaluationResponse
-    created_person: PersonSummaryResponse | None
-    created_ai_log: AILogSummaryResponse
-    message: str = "Persona registrada correctamente"
-
-
-class UpdatePersonRequest(BaseModel):
-    first_name: str = Field(min_length=1, max_length=30)
-    last_name: str = Field(min_length=1, max_length=50)
-    age: int = Field(ge=0, le=120)
-    background_info: str = Field(min_length=1)
-    weight: float = Field(ge=0)
-    height: float = Field(ge=0)
-    id_card: str | None = None
-    photo_url: str | None = None
-
-
-class UpdatePersonResponse(BaseModel):
-    person: PersonSummaryResponse
-    message: str = "Persona editada correctamente"
-
-
-class UpdatePersonStatusRequest(BaseModel):
-    health_status: Literal["SANO", "HERIDO", "ENFERMO", "MUERTO"] | None = None
-    current_status: Literal["TRABAJANDO", "EN EXPLORACIÓN", "TRASLADANDO RECURSOS", "LIBRE"] | None = None
-
-
-class UpdatePersonStatusResponse(BaseModel):
-    person: PersonSummaryResponse
-    message: str = "Estado de persona actualizado correctamente"
-
-
-class TemporaryReassignmentRequest(BaseModel):
-    profession_name: str = Field(min_length=1, max_length=50)
-    reason: str = Field(min_length=1, max_length=100)
-
-
-class TemporaryReassignmentResponse(BaseModel):
-    person: PersonSummaryResponse
-    message: str = "Reasignacion temporal actualizada correctamente"
+__all__ = [
+    "CandidateInput",
+    "ScoreBreakdownResponse",
+    "EvaluationResponse",
+    "EvaluateCandidateRequest",
+    "RegisterCandidateRequest",
+    "ProfessionOptionResponse",
+    "PersonSummaryResponse",
+    "AILogSummaryResponse",
+    "DashboardResponse",
+    "RegisterCandidateResponse",
+    "UpdatePersonRequest",
+    "UpdatePersonResponse",
+    "UpdatePersonStatusRequest",
+    "UpdatePersonStatusResponse",
+    "TemporaryReassignmentRequest",
+    "TemporaryReassignmentResponse",
+]
