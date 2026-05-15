@@ -12,11 +12,78 @@ from src.auth.service.authorization import (
 )
 from src.core.database import get_db
 from src.explorations.schemas.exploration_history import ExplorationHistoryResponse
+from src.explorations.schemas.exploration_loot import (
+    RegisterExplorationLootRequest,
+    RegisterExplorationLootResponse,
+    ReturnExplorationRequest,
+)
 from src.explorations.service.exploration_service import ExplorationService
-
-
+from src.explorations.schemas.available_explorer import AvailableExplorerResponse
+from src.explorations.schemas.create_exploration import (
+    CreateExplorationRequest,
+    CreateExplorationResponse,
+)
+from src.explorations.schemas.cancel_exploration import CancelExplorationResponse
+from src.explorations.schemas.exploration_list import ExplorationListResponse
 router = APIRouter(prefix="/explorations", tags=["Explorations"])
 
+
+def validate_exploration_access(
+    db: Session,
+    current_user: UserProfileResponse,
+) -> None:
+    if current_user.role_name == ROLE_WORKER:
+        enforce_role_permissions(
+            db,
+            current_user,
+            {ROLE_WORKER},
+            {PERM_VIEW_WORKER_PAGE},
+        )
+
+        profession_name = (current_user.profession_name or "").upper()
+
+        if profession_name != "EXPLORADOR":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Profesión no autorizada",
+            )
+
+        return
+
+    if current_user.role_name in {ROLE_TRAVEL, ROLE_ADMIN}:
+        enforce_role_permissions(
+            db,
+            current_user,
+            {ROLE_TRAVEL, ROLE_ADMIN},
+            {PERM_VIEW_EXPEDITIONS},
+        )
+
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Rol no autorizado",
+    )
+
+@router.get(
+    "",
+    response_model=list[ExplorationListResponse],
+)
+def get_explorations(
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> list[ExplorationListResponse]:
+    validate_exploration_access(db, current_user)
+
+    camp_id = getattr(current_user, "camp_id", None)
+
+    if not camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario no tiene campamento asociado",
+        )
+
+    return ExplorationService.get_all_by_camp(db, camp_id)
 
 @router.get(
     "/history/{person_id}",
@@ -27,30 +94,101 @@ def get_exploration_history(
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> list[ExplorationHistoryResponse]:
-    if current_user.role_name == ROLE_WORKER:
-        enforce_role_permissions(db, current_user, {ROLE_WORKER}, {PERM_VIEW_WORKER_PAGE})
-        profession_name = (current_user.profession_name or "").upper()
-        if profession_name != "EXPLORADOR":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Profesion no autorizada",
-            )
-        if current_user.person_id != person_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No puedes ver expediciones de otra persona",
-            )
-    elif current_user.role_name in {ROLE_TRAVEL, ROLE_ADMIN}:
-        enforce_role_permissions(
-            db,
-            current_user,
-            {ROLE_TRAVEL, ROLE_ADMIN},
-            {PERM_VIEW_EXPEDITIONS},
-        )
-    else:
+    validate_exploration_access(db, current_user)
+
+    if current_user.role_name == ROLE_WORKER and current_user.person_id != person_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Rol no autorizado",
+            detail="No puedes ver expediciones de otra persona",
         )
 
     return ExplorationService.get_history_by_person(db, person_id)
+
+@router.post(
+    "",
+    response_model=CreateExplorationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_exploration(
+    payload: CreateExplorationRequest,
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> CreateExplorationResponse:
+    validate_exploration_access(db, current_user)
+
+    if not current_user.camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario no tiene campamento asociado",
+        )
+
+    return ExplorationService.create_exploration(
+        db=db,
+        payload=payload,
+        camp_id=current_user.camp_id,
+    )
+
+@router.get(
+    "/available-explorers",
+    response_model=list[AvailableExplorerResponse],
+)
+def get_available_explorers(
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> list[AvailableExplorerResponse]:
+    validate_exploration_access(db, current_user)
+
+    if not current_user.camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario no tiene campamento asociado",
+        )
+
+    return ExplorationService.get_available_explorers(
+        db=db,
+        camp_id=current_user.camp_id,
+    )
+
+@router.post(
+    "/loot",
+    response_model=RegisterExplorationLootResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_exploration_loot(
+    payload: RegisterExplorationLootRequest,
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> RegisterExplorationLootResponse:
+    validate_exploration_access(db, current_user)
+
+    return ExplorationService.register_loot(db, payload)
+
+
+@router.post(
+    "/return",
+    response_model=RegisterExplorationLootResponse,
+    status_code=status.HTTP_200_OK,
+)
+def return_exploration(
+    payload: ReturnExplorationRequest,
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> RegisterExplorationLootResponse:
+    validate_exploration_access(db, current_user)
+
+    return ExplorationService.return_exploration(db, payload)
+
+
+@router.post(
+    "/cancel",
+    response_model=CancelExplorationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def cancel_exploration(
+    exploration_id: int,
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> CancelExplorationResponse:
+    validate_exploration_access(db, current_user)
+
+    return ExplorationService.cancel_exploration(db, exploration_id)
