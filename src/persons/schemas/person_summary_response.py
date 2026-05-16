@@ -19,3 +19,4 @@ class PersonSummaryResponse(BaseModel):
     id_card: str | None
     photo_url: str | None
     background_info: str
+    is_active: bool

@@ -66,6 +66,7 @@ class HumanIntakeService:
         evaluation = HumanIntakeService.evaluate_candidate(db, payload.candidate)
         allow_entry = payload.human_decision == "PERMITIR_INGRESO"
         selected_profession = (payload.selected_profession or "").strip()
+        candidate_id_card = (payload.candidate.id_card or "AUTO-GENERATED").strip()
 
         if allow_entry and not selected_profession:
             raise HTTPException(
@@ -73,8 +74,23 @@ class HumanIntakeService:
                 detail="A profession must be selected before registration.",
             )
 
-        created_person: Person | None = None
-        if allow_entry:
+        created_person = (
+            db.query(Person)
+            .filter(
+                Person.id_card == candidate_id_card,
+                Person.camp_id == payload.candidate.camp_id,
+            )
+            .order_by(Person.id.desc())
+            .first()
+        )
+
+        if created_person and created_person.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Esta persona ya se encuentra activa en el campamento.",
+            )
+
+        if created_person is None:
             created_person = Person(
                 name=payload.candidate.first_name.strip(),
                 last_name=payload.candidate.last_name.strip(),
@@ -87,12 +103,28 @@ class HumanIntakeService:
                 health_status=HumanIntakeService._infer_health_status(payload.candidate.background_info),
                 camp_entry_date=datetime.now(timezone.utc),
                 photo_url=(payload.candidate.photo_url or "").strip(),
-                is_active=True,
-                id_card=(payload.candidate.id_card or "AUTO-GENERATED").strip(),
+                is_active=allow_entry,
+                id_card=candidate_id_card,
             )
             db.add(created_person)
             db.flush()
+        else:
+            HumanIntakeService._deactivate_all_active_profession_assignments(db, created_person.id)
+            created_person.name = payload.candidate.first_name.strip()
+            created_person.last_name = payload.candidate.last_name.strip()
+            created_person.age = payload.candidate.age
+            created_person.background_info = payload.candidate.background_info.strip()
+            created_person.weight = payload.candidate.weight
+            created_person.height = payload.candidate.height
+            created_person.camp_id = payload.candidate.camp_id
+            created_person.current_status = CurrentStatusEnum.LIBRE
+            created_person.health_status = HumanIntakeService._infer_health_status(payload.candidate.background_info)
+            created_person.camp_entry_date = datetime.now(timezone.utc)
+            created_person.photo_url = (payload.candidate.photo_url or "").strip()
+            created_person.is_active = allow_entry
+            created_person.id_card = candidate_id_card
 
+        if allow_entry:
             assigned = HumanIntakeService._create_profession_assignment(
                 db=db,
                 person_id=created_person.id,
@@ -120,7 +152,7 @@ class HumanIntakeService:
                 "applied_rules": evaluation.applied_rules,
             },
             camp_id=payload.candidate.camp_id,
-            person_id=created_person.id if created_person else None,
+            person_id=created_person.id,
             final_user_decision=allow_entry,
         )
         db.add(created_log)
@@ -132,14 +164,59 @@ class HumanIntakeService:
 
         return RegisterCandidateResponse(
             evaluation=evaluation,
-            created_person=HumanIntakeService._to_person_summary(db, created_person) if created_person else None,
+            created_person=HumanIntakeService._to_person_summary(db, created_person),
             created_ai_log=HumanIntakeService._to_ai_log_summary(created_log),
-            message="Persona registrada correctamente" if created_person else "Candidato rechazado correctamente",
+            message=(
+                "Persona registrada correctamente"
+                if allow_entry
+                else "Persona guardada correctamente, pero el ingreso fue rechazado"
+            ),
         )
 
     @staticmethod
+    def find_person_by_id_card(db: Session, id_card: str, camp_id: int) -> PersonSummaryResponse:
+        normalized_id_card = id_card.strip()
+        if not normalized_id_card:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Id card is required.",
+            )
+
+        people = (
+            db.query(Person)
+            .filter(Person.id_card == normalized_id_card)
+            .order_by(Person.id.desc())
+            .all()
+        )
+
+        if not people:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Person with id card '{normalized_id_card}' not found.",
+            )
+
+        active_same_camp_person = next(
+            (person for person in people if person.camp_id == camp_id and person.is_active),
+            None,
+        )
+        if active_same_camp_person:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Esta persona ya se encuentra activa en el campamento.",
+            )
+
+        same_camp_person = next((person for person in people if person.camp_id == camp_id), None)
+        candidate_person = same_camp_person or people[0]
+        return HumanIntakeService._to_person_summary(db, candidate_person)
+
+    @staticmethod
     def get_dashboard(db: Session, camp_id: int) -> DashboardResponse:
-        people = db.query(Person).filter(Person.camp_id == camp_id).order_by(Person.id.desc()).all()
+        people = (
+            db.query(Person)
+            .filter(Person.camp_id == camp_id, Person.is_active.is_(True))
+            .order_by(Person.id.desc())
+            .all()
+        )
         logs = db.query(AILog).filter(AILog.camp_id == camp_id).order_by(AILog.id.desc()).all()
 
         people_response = [HumanIntakeService._to_person_summary(db, person) for person in people]
@@ -168,6 +245,7 @@ class HumanIntakeService:
             .join(ProfessionAssignment, ProfessionAssignment.person_id == Person.id)
             .filter(
                 Person.camp_id == camp_id,
+                Person.is_active.is_(True),
                 Person.health_status == HealthStatusEnum.SANO,
                 Person.current_status == CurrentStatusEnum.LIBRE,
                 ProfessionAssignment.profession_id == profession.id,
@@ -485,6 +563,7 @@ class HumanIntakeService:
             id_card=person.id_card,
             photo_url=person.photo_url or None,
             background_info=person.background_info,
+            is_active=person.is_active,
         )
 
     @staticmethod
