@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, BackgroundTasks
+import os
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Response
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.login_request import LoginRequest
@@ -18,9 +20,19 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 def login(
     credentials: LoginRequest,
     background_tasks: BackgroundTasks,
+    response: Response,
     db: Session = Depends(get_db),
 ) -> LoginResponse:
-    response = AuthService.login(db, credentials)
+    login_response = AuthService.login(db, credentials)
+    access_token = login_response.access_token
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=os.getenv("ENVIRONMENT") == "production",
+        samesite="strict",
+        max_age=1800,
+    )
 
     # schedule achievements evaluation in background using a fresh session
     try:
@@ -31,7 +43,7 @@ def login(
         # do not block login on background scheduling failures
         pass
 
-    return response
+    return login_response.copy(update={"access_token": ""})
 
 
 @router.get("/me", response_model=UserProfileResponse)
@@ -41,3 +53,13 @@ def get_current_user(
     ),
 ) -> UserProfileResponse:
     return current_user
+
+
+@router.post("/logout")
+def logout(response: Response) -> dict[str, str]:
+    response.delete_cookie(
+        key="access_token",
+        secure=os.getenv("ENVIRONMENT") == "production",
+        samesite="strict",
+    )
+    return {"message": "Logout exitoso"}

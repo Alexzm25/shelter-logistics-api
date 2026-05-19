@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.auth.models.permission import Permission
@@ -38,15 +38,15 @@ PERM_HEAL = "CURAR_PERSONAS"
 
 def get_current_user_from_token(
     db: Session = Depends(get_db),
-    authorization: str | None = Header(default=None),
+    access_token: str | None = Cookie(default=None),
 ) -> UserProfileResponse:
-    if not authorization or not authorization.startswith("Bearer "):
+    if not access_token or not access_token.strip():
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Falta el token de autorización",
         )
 
-    token = authorization.replace("Bearer ", "", 1).strip()
+    token = access_token.strip()
     return AuthService.get_current_user_profile(db, token)
 
 
@@ -97,9 +97,9 @@ def require_role_permissions(
 ) -> Callable[[Session, str | None], UserProfileResponse]:
     def _dependency(
         db: Session = Depends(get_db),
-        authorization: str | None = Header(default=None),
+        access_token: str | None = Cookie(default=None),
     ) -> UserProfileResponse:
-        profile = get_current_user_from_token(db, authorization)
+        profile = get_current_user_from_token(db, access_token)
         enforce_role_permissions(db, profile, allowed_roles, required_permissions)
         return profile
 
