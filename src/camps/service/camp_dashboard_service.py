@@ -17,6 +17,7 @@ from src.camps.schemas.inter_camp_transfer_response import InterCampTransferResp
 from src.camps.schemas.inventory_item_response import InventoryItemResponse
 from src.explorations.enums import ExplorationStatusEnum
 from src.explorations.models.exploration import Exploration
+from src.core.cloudinary import build_cloudinary_url
 from src.inventory.enums import MovementTypeEnum
 from src.inventory.models.inventory import Inventory
 from src.inventory.models.inventory_movement import InventoryMovement
@@ -470,7 +471,7 @@ class CampDashboardService:
                     unlocked_at=CampDashboardService._format_timestamp(
                         user_achievement.unlocked_at
                     ),
-                    icon=achievement.icon_url,
+                    icon=build_cloudinary_url(achievement.icon_url),
                 )
             )
 

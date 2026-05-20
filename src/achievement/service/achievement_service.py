@@ -7,6 +7,7 @@ from src.achievement.models.achievement import Achievement
 from src.achievement.models.user_achievement import UserAchievement
 from src.achievement.schemas.achievement_response import AchievementResponse
 from src.auth.models import AppUser
+from src.core.cloudinary import build_cloudinary_url
 from src.core.database import SessionLocal
 
 from src.inventory.models.inventory_resource import InventoryResource
@@ -102,7 +103,7 @@ class AchievementService:
                         id=ach.id,
                         name=ach.name,
                         description=ach.description,
-                        icon_url=ach.icon_url,
+                        icon_url=build_cloudinary_url(ach.icon_url),
                         is_unlocked=True,
                         unlocked_at=ua.unlocked_at.isoformat() if ua.unlocked_at else None,
                     )

@@ -11,7 +11,7 @@ INSERT INTO "achievement" (
     'Primeros Suministros',
     'Tu campamento acumuló un total de 100 unidades de recursos en el inventario.',
     100,
-    '/icons/achievements/primeros_suministros.png'
+    'primeros_suministros'
 ),
 
 -- 2. Recursos acumulados — nivel avanzado
@@ -19,7 +19,7 @@ INSERT INTO "achievement" (
     'Despensa Llena',
     'Tu campamento alcanzó 500 unidades totales de recursos almacenados en el inventario.',
     500,
-    '/icons/achievements/despensa_llena.png'
+    'despensa_llena'
 ),
 
 -- 3. Primera exploración completada
@@ -27,7 +27,7 @@ INSERT INTO "achievement" (
     'Exploradores Natos',
     'Tu campamento completó su primera exploración exitosamente.',
     1,
-    '/icons/achievements/exploradores_natos.png'
+    'exploradores_natos'
 ),
 
 -- 4. Diez exploraciones completadas
@@ -35,7 +35,7 @@ INSERT INTO "achievement" (
     'Veteranos del Terreno',
     'Tu campamento ha completado un total de 10 exploraciones.',
     10,
-    '/icons/achievements/veteranos_del_terreno.png'
+    'veteranos_del_terreno'
 ),
 
 -- 5. Botín total recolectado en exploraciones
@@ -43,7 +43,7 @@ INSERT INTO "achievement" (
     'Saqueadores Expertos',
     'Tu campamento recolectó en total 200 unidades de botín durante las exploraciones.',
     200,
-    '/icons/achievements/saqueadores_expertos.png'
+    'saqueadores_expertos'
 ),
 
 -- 6. Primera transferencia enviada o recibida
@@ -51,7 +51,7 @@ INSERT INTO "achievement" (
     'Red de Aliados',
     'Tu campamento realizó su primera transferencia de recursos con otro campamento.',
     1,
-    '/icons/achievements/red_de_aliados.png'
+    'red_de_aliados'
 ),
 
 -- 7. Cinco transferencias completadas
@@ -59,7 +59,7 @@ INSERT INTO "achievement" (
     'Rutas Establecidas',
     'Tu campamento completó 5 transferencias de recursos con otros campamentos.',
     5,
-    '/icons/achievements/rutas_establecidas.png'
+    'rutas_establecidas'
 ),
 
 -- 8. Producción total del campamento
@@ -67,7 +67,7 @@ INSERT INTO "achievement" (
     'Manos a la Obra',
     'El campamento produjo un total acumulado de 300 unidades de recursos.',
     300,
-    '/icons/achievements/manos_a_la_obra.png'
+    'manos_a_la_obra'
 ),
 
 -- 9. Personas activas en el campamento
@@ -75,7 +75,7 @@ INSERT INTO "achievement" (
     'Comunidad Creciente',
     'Tu campamento tiene 10 personas activas al mismo tiempo.',
     10,
-    '/icons/achievements/comunidad_creciente.png'
+    'comunidad_creciente'
 ),
 
 -- 10. Raciones diarias distribuidas
@@ -83,7 +83,7 @@ INSERT INTO "achievement" (
     'Nadie se Queda sin Comer',
     'Tu campamento distribuyó raciones diarias en 30 ocasiones consecutivas.',
     30,
-    '/icons/achievements/nadie_sin_comer.png'
+    'nadie_sin_comer'
 ),
 
 -- 11. Personas sanas en el campamento
@@ -91,7 +91,7 @@ INSERT INTO "achievement" (
     'Campamento Saludable',
     'Tu campamento tuvo 15 personas con estado de salud SANO al mismo tiempo.',
     15,
-    '/icons/achievements/campamento_saludable.png'
+    'campamento_saludable'
 ),
 
 -- 12. Movimientos de inventario realizados
@@ -99,5 +99,5 @@ INSERT INTO "achievement" (
     'Logística Maestra',
     'Tu campamento registró 100 movimientos en el inventario (ingresos, salidas o transferencias).',
     100,
-    '/icons/achievements/logistica_maestra.png'
+    'logistica_maestra'
 );
