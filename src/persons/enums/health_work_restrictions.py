@@ -39,4 +39,22 @@ def is_valid_health_transition(old_status: str, new_status: str) -> tuple[bool, 
     Returns:
         Tupla (es_válido, mensaje)
     """
-    return (True, "")
+    old = (old_status or "").upper()
+    new = (new_status or "").upper()
+
+    allowed_transitions = {
+        "SANO": {"SANO", "HERIDO", "ENFERMO", "MUERTO"},
+        "HERIDO": {"HERIDO", "ENFERMO", "SANO", "MUERTO"},
+        "ENFERMO": {"ENFERMO", "HERIDO", "SANO", "MUERTO"},
+        "MUERTO": {"MUERTO"},
+    }
+
+    if old not in allowed_transitions:
+        return False, f"Estado anterior desconocido: '{old_status}'"
+    if new not in {"SANO", "HERIDO", "ENFERMO", "MUERTO"}:
+        return False, f"Nuevo estado desconocido: '{new_status}'"
+
+    if new in allowed_transitions[old]:
+        return True, ""
+
+    return False, f"Transición inválida de '{old_status}' a '{new_status}'"
