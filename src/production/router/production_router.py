@@ -23,9 +23,18 @@ def register_production(
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> RegisterProductionResponse:
-    enforce_role_permissions(db, current_user, {ROLE_WORKER}, {PERM_REGISTER_PRODUCTION})
+    
+    try:
+        enforce_role_permissions(db, current_user, {ROLE_WORKER}, {PERM_REGISTER_PRODUCTION})
+    except HTTPException:
+        
+        profession_name = (current_user.profession_name or "").upper()
+        if profession_name != "MEDICO":
+            raise
+
     profession_name = (current_user.profession_name or "").upper()
-    if profession_name != "AGRICULTOR":
+    
+    if profession_name not in ("AGRICULTOR", "MEDICO"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Profesion no autorizada",

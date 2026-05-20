@@ -10,6 +10,7 @@ from src.persons.models.profession_assignment import ProfessionAssignment
 from src.production.models.production_log import ProductionLog
 from src.production.schemas.production_request import RegisterProductionRequest
 from src.production.schemas.production_response import RegisterProductionResponse
+from src.persons.models.profession_production import ProfessionProduction
 
 
 class ProductionService:
@@ -82,9 +83,35 @@ class ProductionService:
                 detail="Recurso no encontrado en el inventario del campamento",
             )
 
+        profession_prod = (
+            db.query(ProfessionProduction)
+            .filter(
+                ProfessionProduction.profession_id == profession.id,
+                ProfessionProduction.resource_id == payload.resource_id,
+            )
+            .first()
+        )
+
+        if not profession_prod:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Límite de producción no definido para esta profesión y recurso",
+            )
+
+        max_allowed = int(profession_prod.production_quantity)
+
+        if payload.actual_quantity > max_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "La cantidad reportada no es posible. "
+                    f"Máximo permitido: {max_allowed}."
+                ),
+            )
+
         production_log = ProductionLog(
             actual_quantity=payload.actual_quantity,
-            expected_quantity=payload.actual_quantity,
+            expected_quantity=max_allowed,
             camp_id=person.camp_id,
             person_id=person.id,
             resource_id=payload.resource_id,
