@@ -16,6 +16,16 @@ from src.core.database import get_db
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
+def get_cookie_settings() -> dict[str, object]:
+    is_production = os.getenv("ENVIRONMENT") == "production"
+    return {
+        "httponly": True,
+        "secure": is_production,
+        "samesite": "none" if is_production else "lax",
+        "max_age": 1800,
+    }
+
+
 @router.post("/login", response_model=LoginResponse)
 def login(
     credentials: LoginRequest,
@@ -28,10 +38,7 @@ def login(
     response.set_cookie(
         key="access_token",
         value=access_token,
-        httponly=True,
-        secure=os.getenv("ENVIRONMENT") == "production",
-        samesite="strict",
-        max_age=1800,
+        **get_cookie_settings(),
     )
 
     # schedule achievements evaluation in background using a fresh session
@@ -60,6 +67,6 @@ def logout(response: Response) -> dict[str, str]:
     response.delete_cookie(
         key="access_token",
         secure=os.getenv("ENVIRONMENT") == "production",
-        samesite="strict",
+        samesite="none" if os.getenv("ENVIRONMENT") == "production" else "lax",
     )
     return {"message": "Logout exitoso"}
