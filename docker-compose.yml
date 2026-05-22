@@ -1,14 +1,10 @@
 services:
   api:
     container_name: ${APP_CONTAINER_NAME}
-    working_dir: ${APP_WORKDIR}
+    working_dir: /app
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        PYTHON_IMAGE: ${PYTHON_IMAGE}
-        APP_WORKDIR: ${APP_WORKDIR}
-        UVICORN_PORT: ${UVICORN_PORT}
     env_file:
       - .env
     environment:
@@ -19,7 +15,7 @@ services:
     ports:
       - "${APP_PORT}:${UVICORN_PORT}"
     volumes:
-      - .:${APP_WORKDIR}
+      - .:/app
     depends_on:
       db:
         condition: service_healthy
