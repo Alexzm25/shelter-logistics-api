@@ -90,6 +90,14 @@ class GroqEvaluationService:
             ) from exc
 
         parsed_content = GroqEvaluationService._parse_content_json(content)
+        
+        try:
+            if "score_breakdown" in parsed_content:
+                parsed_content["score_breakdown"] = GroqEvaluationService._scale_breakdown_to_total(
+                    parsed_content["score_breakdown"], int(parsed_content.get("score", 0))
+                )
+        except Exception:
+            pass
 
         try:
             return EvaluationResponse.model_validate(parsed_content)
@@ -120,3 +128,24 @@ class GroqEvaluationService:
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Groq API JSON content could not be parsed.",
                 ) from exc
+        
+    @staticmethod
+    def _scale_breakdown_to_total(breakdown: dict, total_score: int) -> dict:
+        keys = ["resilience", "medical_experience", "defense_experience", "context"]
+        vals = [max(0, min(100, int(breakdown.get(k, 0) or 0))) for k in keys]
+        s = sum(vals)
+        if s == 0:
+            if total_score and total_score > 0:
+                base = total_score // 4
+                scaled = [base] * 4
+                rem = total_score - sum(scaled)
+                scaled[0] += rem
+                return dict(zip(keys, scaled))
+            return dict(zip(keys, [0, 0, 0, 0]))
+        target = total_score if total_score and total_score > 0 else 100
+        scaled = [int(round(v * target / s)) for v in vals]
+        diff = target - sum(scaled)
+        scaled[0] += diff
+
+        scaled = [max(0, min(100, int(v))) for v in scaled]
+        return dict(zip(keys, scaled))
