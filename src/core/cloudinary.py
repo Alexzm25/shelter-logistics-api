@@ -1,5 +1,7 @@
 from cloudinary import config as cloudinary_config
+from cloudinary.uploader import upload as cloudinary_upload
 from cloudinary.utils import cloudinary_url
+from fastapi import HTTPException, UploadFile, status
 
 from src.core.settings import settings
 
@@ -24,3 +26,21 @@ def build_cloudinary_url(public_id: str | None) -> str | None:
     normalized = trimmed.lstrip("/")
     url, _ = cloudinary_url(normalized, secure=settings.cloudinary_secure)
     return url
+
+
+def upload_image_to_cloudinary(upload_file: UploadFile, folder: str) -> str:
+    upload_file.file.seek(0)
+    result = cloudinary_upload(
+        upload_file.file,
+        folder=folder,
+        resource_type="image",
+    )
+
+    secure_url = result.get("secure_url") or result.get("url")
+    if not secure_url:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="No fue posible guardar la imagen en Cloudinary.",
+        )
+
+    return secure_url

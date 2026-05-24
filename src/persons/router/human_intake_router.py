@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import Literal
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
@@ -11,7 +13,9 @@ from src.auth.service.authorization import (
     get_current_user_from_token,
 )
 from src.core.database import get_db
+from src.core.cloudinary import upload_image_to_cloudinary
 from src.persons.schemas.human_intake_schemas import (
+    CandidateInput,
     DashboardResponse,
     EvaluateCandidateRequest,
     EvaluationResponse,
@@ -100,22 +104,88 @@ def evaluate_candidate(
 
 @router.post("/register", response_model=RegisterCandidateResponse)
 def register_candidate(
-    payload: RegisterCandidateRequest,
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    age: int = Form(..., ge=0, le=120),
+    background_info: str = Form(...),
+    weight: float = Form(..., ge=0),
+    height: float = Form(..., ge=0),
+    camp_id: int = Form(..., ge=1),
+    human_decision: Literal["PERMITIR_INGRESO", "RECHAZAR_INGRESO"] = Form(...),
+    selected_profession: str | None = Form(None),
+    id_card: str | None = Form(None),
+    photo_url: str | None = Form(None),
+    photo_file: UploadFile | None = File(None),
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> RegisterCandidateResponse:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
+
+    resolved_photo_url = (photo_url or "").strip() or None
+    if photo_file is not None:
+        content_type = (photo_file.content_type or "").lower()
+        if not content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Solo se permiten archivos de imagen.",
+            )
+        resolved_photo_url = upload_image_to_cloudinary(photo_file, folder="/persons")
+
+    payload = RegisterCandidateRequest(
+        candidate=CandidateInput(
+            first_name=first_name,
+            last_name=last_name,
+            age=age,
+            background_info=background_info,
+            weight=weight,
+            height=height,
+            id_card=(id_card or "").strip() or None,
+            photo_url=resolved_photo_url,
+            camp_id=camp_id,
+        ),
+        human_decision=human_decision,
+        selected_profession=(selected_profession or "").strip() or None,
+    )
     return HumanIntakeService.register_candidate(db, payload)
 
 
 @router.patch("/people/{person_id}", response_model=UpdatePersonResponse)
 def update_person(
     person_id: int,
-    payload: UpdatePersonRequest,
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    age: int = Form(..., ge=0, le=120),
+    background_info: str = Form(...),
+    weight: float = Form(..., ge=0),
+    height: float = Form(..., ge=0),
+    id_card: str | None = Form(None),
+    photo_url: str | None = Form(None),
+    photo_file: UploadFile | None = File(None),
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> UpdatePersonResponse:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
+
+    resolved_photo_url = (photo_url or "").strip() or None
+    if photo_file is not None:
+        content_type = (photo_file.content_type or "").lower()
+        if not content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Solo se permiten archivos de imagen.",
+            )
+        resolved_photo_url = upload_image_to_cloudinary(photo_file, folder="/persons")
+
+    payload = UpdatePersonRequest(
+        first_name=first_name,
+        last_name=last_name,
+        age=age,
+        background_info=background_info,
+        weight=weight,
+        height=height,
+        id_card=(id_card or "").strip() or None,
+        photo_url=resolved_photo_url,
+    )
     return HumanIntakeService.update_person(db, person_id, payload)
 
 
