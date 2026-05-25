@@ -10,6 +10,7 @@ from src.inventory.router.inventory_router import router as inventory_router
 from src.explorations.router.exploration_router import router as exploration_router
 from src.production.router.production_router import router as production_router
 from src.transfers.router.transfer_router import router as transfer_router
+from src.system.router.system_router import router as system_router
 from src.core.cloudinary import configure_cloudinary
 
 app = FastAPI(title="shelter-logistics-api")
@@ -36,6 +37,7 @@ app.include_router(inventory_router)
 app.include_router(exploration_router)
 app.include_router(production_router)
 app.include_router(transfer_router)
+app.include_router(system_router)
 
 @app.get("/")
 def root() -> dict[str, str]:
