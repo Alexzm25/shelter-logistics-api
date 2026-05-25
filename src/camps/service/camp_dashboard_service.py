@@ -18,6 +18,7 @@ from src.camps.schemas.inventory_item_response import InventoryItemResponse
 from src.explorations.enums import ExplorationStatusEnum
 from src.explorations.models.exploration import Exploration
 from src.core.cloudinary import build_cloudinary_url
+from src.core.inventory_utils import resolve_alert_level, LOW_STOCK_MULTIPLIER
 from src.inventory.enums import MovementTypeEnum
 from src.inventory.models.inventory import Inventory
 from src.inventory.models.inventory_movement import InventoryMovement
@@ -32,7 +33,6 @@ from src.transfers.models.transfer_resource import TransferResource
 
 
 class CampDashboardService:
-    LOW_STOCK_MULTIPLIER = 1.5
     INTERNAL_TRANSFER_LIMIT = 25
     INTER_CAMP_TRANSFER_LIMIT = 50
     ACHIEVEMENT_LIMIT = 12
@@ -137,7 +137,7 @@ class CampDashboardService:
 
     @staticmethod
     def _count_inventory_alerts(db: Session, camp_id: int) -> tuple[int, int]:
-        threshold = CampDashboardService.LOW_STOCK_MULTIPLIER
+        threshold = LOW_STOCK_MULTIPLIER
         inventory_subquery = (
             db.query(InventoryResource)
             .join(Inventory, Inventory.id == InventoryResource.inventory_id)
@@ -213,7 +213,7 @@ class CampDashboardService:
 
         items: list[InventoryItemResponse] = []
         for inventory_resource, resource in rows:
-            alert_level = CampDashboardService._resolve_alert_level(
+            alert_level = resolve_alert_level(
                 inventory_resource.quantity,
                 inventory_resource.minimum_stock_level,
             )
@@ -230,14 +230,6 @@ class CampDashboardService:
             )
 
         return items
-
-    @staticmethod
-    def _resolve_alert_level(quantity: int, minimum_stock: int) -> str:
-        if quantity <= minimum_stock:
-            return "critical"
-        if quantity <= minimum_stock * CampDashboardService.LOW_STOCK_MULTIPLIER:
-            return "warning"
-        return "normal"
 
     @staticmethod
     def _build_inter_camp_transfers(
