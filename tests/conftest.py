@@ -9,7 +9,6 @@ Provides:
 
 from __future__ import annotations
 
-import os
 from collections.abc import Generator
 from pathlib import Path
 from urllib.parse import urlparse
@@ -103,15 +102,50 @@ def test_db_url() -> Generator[str, None, None]:
     conn.close()
 
 
+def _split_sql_statements(raw_sql: str) -> list[str]:
+    """Split SQL on ``;`` while respecting dollar-quoted strings (``$$...$$``).
+
+    Semicolons inside ``DO $$ ... END; $$`` blocks are NOT treated as
+    statement separators.
+    """
+    statements: list[str] = []
+    current: list[str] = []
+    in_dollar = False
+
+    for ch in raw_sql:
+        current.append(ch)
+        # Detect $$ open/close (two consecutive dollar signs)
+        if len(current) >= 2 and "".join(current[-2:]) == "$$":
+            in_dollar = not in_dollar
+        # Only split on ; when outside dollar-quoted blocks
+        if ch == ";" and not in_dollar:
+            stmt = "".join(current).strip()
+            current.clear()
+            # Filter out blank/comment-only statements
+            lines = [l for l in stmt.splitlines() if l.strip()]
+            if lines and not all(
+                ln.lstrip().startswith("--") for ln in lines
+            ):
+                statements.append("\n".join(lines).strip())
+    # Catch any trailing content (should be empty after last ``;``)
+    tail = "".join(current).strip()
+    if tail:
+        lines = [l for l in tail.splitlines() if l.strip()]
+        if lines and not all(ln.lstrip().startswith("--") for ln in lines):
+            statements.append("\n".join(lines).strip())
+
+    return statements
+
+
 def seed_test_db(database_url: str, sql_files: list[Path]) -> None:
     """Execute all init SQL scripts against the given database."""
     engine = create_engine(database_url)
     with engine.connect() as conn:
         for sql_file in sql_files:
-            raw_sql = sql_file.read_text(encoding="utf-8")
-            for statement in raw_sql.split(";"):
-                stmt = statement.strip()
-                if stmt and not stmt.startswith("--"):
+            raw_sql = sql_file.read_text(encoding="utf-8-sig")
+            statements = _split_sql_statements(raw_sql)
+            for stmt in statements:
+                if stmt:
                     conn.execute(text(stmt))
         conn.commit()
     engine.dispose()
@@ -139,14 +173,38 @@ def db_session(test_engine) -> Generator[Session, None, None]:
 
 @pytest.fixture()
 def test_client(db_session: Session) -> Generator[TestClient, None, None]:
-    """FastAPI TestClient with get_db overridden to use the test session."""
+    """FastAPI TestClient with get_db overridden to use the test session.
+
+    Also bypasses authentication by patching ``get_current_user_from_token``
+    to return a mock admin profile (per threat model T-01-01).
+    """
+    from unittest.mock import patch
+
+    from src.auth.schemas.user_profile import UserProfileResponse
+    from src.auth.service.authorization import get_current_user_from_token
 
     def _override_get_db() -> Generator[Session, None, None]:
         yield db_session
 
+    def _mock_current_user(
+        _db: Session, _access_token: str | None = None
+    ) -> UserProfileResponse:
+        return UserProfileResponse(
+            username="test_admin",
+            user_id=1,
+            person_id=1,
+            camp_id=1,
+            profession_name="MEDICO",
+            role_name="ADMINISTRADOR SISTEMA",
+        )
+
     app.dependency_overrides[get_db] = _override_get_db
-    client = TestClient(app)
-    yield client
+    with patch(
+        "src.auth.service.authorization.get_current_user_from_token",
+        side_effect=_mock_current_user,
+    ):
+        client = TestClient(app)
+        yield client
     app.dependency_overrides.clear()
 
 
