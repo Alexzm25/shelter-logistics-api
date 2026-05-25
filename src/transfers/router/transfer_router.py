@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
@@ -88,6 +88,9 @@ def list_pending_requests(
 
 @router.get("/history", response_model=list[TransferRequestResponse])
 def list_history_requests(
+    response: Response,
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=10, ge=1, le=100),
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> list[TransferRequestResponse]:
@@ -100,7 +103,11 @@ def list_history_requests(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Rol no autorizado",
         )
-    return TransferService.list_history_requests(db, current_user.camp_id)
+    total, items = TransferService.list_history_requests_paginated(
+        db, current_user.camp_id, page, size
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.get("/explorers", response_model=list[ExplorerOptionResponse])

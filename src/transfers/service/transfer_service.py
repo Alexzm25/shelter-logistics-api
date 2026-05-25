@@ -91,6 +91,23 @@ class TransferService:
         return TransferService._build_transfer_responses(db, requests)
 
     @staticmethod
+    def list_history_requests_paginated(
+        db: Session, current_camp_id: int, page: int, size: int
+    ) -> tuple[int, list[TransferRequestResponse]]:
+        base_query = db.query(TransferRequest).filter(
+            TransferRequest.from_camp_id == current_camp_id
+        )
+        total = base_query.count()
+        offset = (page - 1) * size
+        requests = (
+            base_query.order_by(TransferRequest.created_at.desc())
+            .offset(offset)
+            .limit(size)
+            .all()
+        )
+        return total, TransferService._build_transfer_responses(db, requests)
+
+    @staticmethod
     def list_explorers(
         db: Session, current_camp_id: int
     ) -> list[ExplorerOptionResponse]:
