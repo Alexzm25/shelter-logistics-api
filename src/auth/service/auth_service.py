@@ -44,13 +44,6 @@ class AuthService:
         access_token, expires_at = create_access_token(subject=user.username)
         return LoginResponse(access_token=access_token, expires_at=expires_at, camp_id=camp.id, camp_name=camp.name)
 
-        return LoginResponse(
-            access_token=access_token,
-            expires_at=expires_at,
-            camp_id=camp.id,
-            camp_name=camp.name,
-        )
-
     @staticmethod
     def get_current_user_profile(db: Session, token: str) -> UserProfileResponse:
         try:
