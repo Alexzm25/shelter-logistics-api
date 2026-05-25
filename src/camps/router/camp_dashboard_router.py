@@ -16,6 +16,7 @@ def get_camp_dashboard(
     response: Response,
     camp_id: int = Path(..., ge=1),
     page: int = Query(default=1, ge=1),
+    person_page: int = Query(default=1, ge=1),
     size: int = Query(default=10, ge=1, le=100),
     internal_page: int = Query(default=1, ge=1),
     current_user: UserProfileResponse = Depends(
@@ -24,7 +25,7 @@ def get_camp_dashboard(
     db: Session = Depends(get_db),
 ) -> CampDashboardResponse:
     _ = current_user
-    dashboard = CampDashboardService.get_dashboard(db, camp_id, page, size, internal_page)
-    response.headers["X-Total-Count"] = str(dashboard.inter_camp_total)
+    dashboard = CampDashboardService.get_dashboard(db, camp_id, page, person_page, size, internal_page)
+    response.headers["X-Total-Count"] = str(dashboard.inter_camp_resource_total)
     response.headers["X-Total-Count-Internal"] = str(dashboard.internal_total)
     return dashboard
