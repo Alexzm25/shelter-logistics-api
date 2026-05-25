@@ -93,17 +93,17 @@ def get_person_by_id_card(
 
 
 @router.post("/evaluate", response_model=EvaluationResponse)
-def evaluate_candidate(
+async def evaluate_candidate(
     payload: EvaluateCandidateRequest,
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> EvaluationResponse:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
-    return HumanIntakeService.evaluate_candidate(db, payload.candidate)
+    return await HumanIntakeService.evaluate_candidate(db, payload.candidate)
 
 
 @router.post("/register", response_model=RegisterCandidateResponse)
-def register_candidate(
+async def register_candidate(
     first_name: str = Form(...),
     last_name: str = Form(...),
     age: int = Form(..., ge=0, le=120),
@@ -146,7 +146,7 @@ def register_candidate(
         human_decision=human_decision,
         selected_profession=(selected_profession or "").strip() or None,
     )
-    return HumanIntakeService.register_candidate(db, payload)
+    return await HumanIntakeService.register_candidate(db, payload)
 
 
 @router.patch("/people/{person_id}", response_model=UpdatePersonResponse)

@@ -44,9 +44,9 @@ class HumanIntakeService:
     TRACKED_ROLES = ("MEDIC", "EXPLORER", "FARMER")
 
     @staticmethod
-    def evaluate_candidate(db: Session, candidate: CandidateInput) -> EvaluationResponse:
+    async def evaluate_candidate(db: Session, candidate: CandidateInput) -> EvaluationResponse:
         role_counts = HumanIntakeService._get_role_counts(db, candidate.camp_id)
-        evaluation = GroqEvaluationService.evaluate_candidate(candidate, role_counts)
+        evaluation = await GroqEvaluationService.evaluate_candidate(candidate, role_counts)
         return EvaluationResponse(
             decision=HumanIntakeService._normalize_ai_decision(evaluation.decision),
             score=evaluation.score,
@@ -62,8 +62,8 @@ class HumanIntakeService:
         return [ProfessionOptionResponse(name=name, is_critical=is_critical) for name, is_critical in profession_rows]
 
     @staticmethod
-    def register_candidate(db: Session, payload: RegisterCandidateRequest) -> RegisterCandidateResponse:
-        evaluation = HumanIntakeService.evaluate_candidate(db, payload.candidate)
+    async def register_candidate(db: Session, payload: RegisterCandidateRequest) -> RegisterCandidateResponse:
+        evaluation = await HumanIntakeService.evaluate_candidate(db, payload.candidate)
         allow_entry = payload.human_decision == "PERMITIR_INGRESO"
         selected_profession = (payload.selected_profession or "").strip()
         candidate_id_card = (payload.candidate.id_card or "AUTO-GENERATED").strip()
@@ -219,7 +219,41 @@ class HumanIntakeService:
         )
         logs = db.query(AILog).filter(AILog.camp_id == camp_id).order_by(AILog.id.desc()).all()
 
-        people_response = [HumanIntakeService._to_person_summary(db, person) for person in people]
+        person_ids = [p.id for p in people]
+
+        # Batch pre-fetch main profession assignments
+        profession_rows = (
+            db.query(ProfessionAssignment.person_id, Profession.name)
+            .join(Profession, ProfessionAssignment.profession_id == Profession.id)
+            .filter(
+                ProfessionAssignment.person_id.in_(person_ids),
+                ProfessionAssignment.is_active.is_(True),
+                ProfessionAssignment.is_main_profession.is_(True),
+            )
+            .all()
+        )
+        profession_by_person: dict[int, str] = {row.person_id: row.name for row in profession_rows}
+
+        # Batch pre-fetch temporary reassignments
+        reassignment_rows = (
+            db.query(ProfessionAssignment.person_id, Profession.name)
+            .join(Profession, ProfessionAssignment.profession_id == Profession.id)
+            .filter(
+                ProfessionAssignment.person_id.in_(person_ids),
+                ProfessionAssignment.is_active.is_(True),
+                ProfessionAssignment.is_main_profession.is_(False),
+            )
+            .order_by(ProfessionAssignment.person_id, ProfessionAssignment.id.desc())
+            .all()
+        )
+        reassignment_by_person: dict[int, str] = {}
+        for row in reassignment_rows:
+            reassignment_by_person[row.person_id] = row.name
+
+        people_response = [
+            HumanIntakeService._to_person_summary_batched(db, person, profession_by_person, reassignment_by_person)
+            for person in people
+        ]
         logs_response = [HumanIntakeService._to_ai_log_summary(log) for log in logs]
 
         return DashboardResponse(people=people_response, ai_logs=logs_response)
@@ -557,6 +591,29 @@ class HumanIntakeService:
             health_status=HumanIntakeService._to_api_health_status(person.health_status),
             profession=profession_name or "SIN_ASIGNAR",
             temporary_reassignment=HumanIntakeService._resolve_temporary_reassignment_for_person(db, person.id),
+            weight=float(person.weight),
+            height=float(person.height),
+            camp_id=person.camp_id,
+            id_card=person.id_card,
+            photo_url=person.photo_url or None,
+            background_info=person.background_info,
+            is_active=person.is_active,
+        )
+
+    @staticmethod
+    def _to_person_summary_batched(
+        db: Session, person: Person, profession_by_person: dict[int, str], reassignment_by_person: dict[int, str]
+    ) -> PersonSummaryResponse:
+        profession_name = profession_by_person.get(person.id)
+        return PersonSummaryResponse(
+            id=person.id,
+            first_name=person.name,
+            last_name=person.last_name,
+            age=person.age,
+            current_status=person.current_status.value,
+            health_status=HumanIntakeService._to_api_health_status(person.health_status),
+            profession=profession_name or "SIN_ASIGNAR",
+            temporary_reassignment=reassignment_by_person.get(person.id),
             weight=float(person.weight),
             height=float(person.height),
             camp_id=person.camp_id,
