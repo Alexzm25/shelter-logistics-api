@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.explorations.enums import ExplorationStatusEnum
@@ -31,6 +32,39 @@ from src.persons.models.profession_assignment import ProfessionAssignment
 
 class ExplorationService:
     @staticmethod
+    def _batch_team_counts(
+        db: Session,
+        exploration_ids: list[int],
+    ) -> dict[int, int]:
+        if not exploration_ids:
+            return {}
+        rows = (
+            db.query(
+                ExplorationMember.exploration_id,
+                func.count(ExplorationMember.person_id),
+            )
+            .filter(ExplorationMember.exploration_id.in_(exploration_ids))
+            .group_by(ExplorationMember.exploration_id)
+            .all()
+        )
+        return {row[0]: row[1] for row in rows}
+
+    @staticmethod
+    def _exploration_to_response(
+        exploration: Exploration,
+        team_count: int,
+    ) -> ExplorationListResponse:
+        return ExplorationListResponse(
+            id=exploration.id,
+            start_date=exploration.start_date,
+            return_date=exploration.return_date,
+            exploration_status=exploration.exploration_status.value,
+            estimated_days=exploration.estimated_days,
+            extra_days=exploration.extra_days,
+            team_count=team_count,
+        )
+
+    @staticmethod
     def get_all_by_camp(
         db: Session,
         camp_id: int,
@@ -42,28 +76,45 @@ class ExplorationService:
             .all()
         )
 
-        result: list[ExplorationListResponse] = []
+        exp_ids = [e.id for e in rows]
+        member_counts = ExplorationService._batch_team_counts(db, exp_ids)
 
-        for exploration in rows:
-            team_count = (
-                db.query(ExplorationMember)
-                .filter(ExplorationMember.exploration_id == exploration.id)
-                .count()
+        return [
+            ExplorationService._exploration_to_response(
+                e,
+                member_counts.get(e.id, 0),
             )
+            for e in rows
+        ]
 
-            result.append(
-                ExplorationListResponse(
-                    id=exploration.id,
-                    start_date=exploration.start_date,
-                    return_date=exploration.return_date,
-                    exploration_status=exploration.exploration_status.value,
-                    estimated_days=exploration.estimated_days,
-                    extra_days=exploration.extra_days,
-                    team_count=team_count,
-                )
+    @staticmethod
+    def get_all_by_camp_paginated(
+        db: Session,
+        camp_id: int,
+        page: int = 1,
+        size: int = 10,
+    ) -> tuple[int, list[ExplorationListResponse]]:
+        base_query = db.query(Exploration).filter(Exploration.camp_id == camp_id)
+        total = base_query.count()
+        rows = (
+            base_query.order_by(Exploration.start_date.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+            .all()
+        )
+
+        exp_ids = [e.id for e in rows]
+        member_counts = ExplorationService._batch_team_counts(db, exp_ids)
+
+        result = [
+            ExplorationService._exploration_to_response(
+                e,
+                member_counts.get(e.id, 0),
             )
+            for e in rows
+        ]
 
-        return result
+        return total, result
 
     @staticmethod
     def get_history_by_person(

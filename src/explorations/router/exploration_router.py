@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 from src.auth.schemas.user_profile import UserProfileResponse
 from src.auth.service.authorization import (
@@ -70,6 +70,9 @@ def validate_exploration_access(
     response_model=list[ExplorationListResponse],
 )
 def get_explorations(
+    response: Response,
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=10, ge=1, le=100),
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> list[ExplorationListResponse]:
@@ -83,7 +86,11 @@ def get_explorations(
             detail="El usuario no tiene campamento asociado",
         )
 
-    return ExplorationService.get_all_by_camp(db, camp_id)
+    total, items = ExplorationService.get_all_by_camp_paginated(
+        db, camp_id, page=page, size=size
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 @router.get(
     "/history/{person_id}",

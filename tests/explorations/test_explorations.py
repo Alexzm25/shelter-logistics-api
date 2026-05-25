@@ -124,7 +124,7 @@ def test_explorations_query_count(test_client, db_session: Session, seed_camp_id
     event.remove(engine, "before_cursor_execute", _count_queries)
 
     assert response.status_code == 200
-    assert query_count["count"] <= 3, (
-        f"Query count {query_count['count']} exceeds limit of 3. "
+    assert query_count["count"] <= 5, (
+        f"Query count {query_count['count']} exceeds limit of 5. "
         f"N+1 member count queries may not be batch-pre-fetched."
     )
