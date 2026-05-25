@@ -17,13 +17,14 @@ def get_camp_dashboard(
     camp_id: int = Path(..., ge=1),
     page: int = Query(default=1, ge=1),
     size: int = Query(default=10, ge=1, le=100),
+    internal_page: int = Query(default=1, ge=1),
     current_user: UserProfileResponse = Depends(
         require_role_permissions({ROLE_ADMIN}, {PERM_VIEW_DASHBOARD})
     ),
     db: Session = Depends(get_db),
 ) -> CampDashboardResponse:
     _ = current_user
-    dashboard = CampDashboardService.get_dashboard(db, camp_id, page, size)
+    dashboard = CampDashboardService.get_dashboard(db, camp_id, page, size, internal_page)
     response.headers["X-Total-Count"] = str(dashboard.inter_camp_total)
     response.headers["X-Total-Count-Internal"] = str(dashboard.internal_total)
     return dashboard

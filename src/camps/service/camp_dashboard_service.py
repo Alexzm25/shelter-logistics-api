@@ -36,7 +36,7 @@ class CampDashboardService:
     ACHIEVEMENT_LIMIT = 12
 
     @staticmethod
-    def get_dashboard(db: Session, camp_id: int, page: int = 1, size: int = 10) -> CampDashboardResponse:
+    def get_dashboard(db: Session, camp_id: int, page: int = 1, size: int = 10, internal_page: int = 1) -> CampDashboardResponse:
         camp = db.query(Camp).filter(Camp.id == camp_id).first()
         if not camp:
             raise HTTPException(
@@ -50,7 +50,7 @@ class CampDashboardService:
             db, camp.id, page, size
         )
         internal_total, internal_transfers = CampDashboardService._build_internal_transfers(
-            db, camp.id, page, size
+            db, camp.id, internal_page, size
         )
         achievements = CampDashboardService._build_achievements(db, camp.id)
 
