@@ -21,6 +21,12 @@ def setup_cloudinary() -> None:
     configure_cloudinary()
 
 
+@app.on_event("shutdown")
+async def shutdown_httpx() -> None:
+    from src.ai.service.groq_evaluation_service import GroqEvaluationService
+    await GroqEvaluationService.close_client()
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,

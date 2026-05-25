@@ -1,6 +1,6 @@
 import json
-from urllib import error, request
 
+import httpx
 from fastapi import HTTPException, status
 
 from src.core.settings import settings
@@ -8,8 +8,25 @@ from src.persons.schemas.human_intake_schemas import CandidateInput, EvaluationR
 
 
 class GroqEvaluationService:
+    _client: httpx.AsyncClient | None = None
+
+    @classmethod
+    async def get_client(cls) -> httpx.AsyncClient:
+        if cls._client is None:
+            cls._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(settings.groq_timeout_seconds),
+                headers={"User-Agent": "shelter-logistics-api/1.0"},
+            )
+        return cls._client
+
+    @classmethod
+    async def close_client(cls) -> None:
+        if cls._client:
+            await cls._client.aclose()
+            cls._client = None
+
     @staticmethod
-    def evaluate_candidate(candidate: CandidateInput, role_counts: dict[str, int]) -> EvaluationResponse:
+    async def evaluate_candidate(candidate: CandidateInput, role_counts: dict[str, int]) -> EvaluationResponse:
         if not settings.groq_api_key:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -48,36 +65,25 @@ class GroqEvaluationService:
             ],
         }
 
-        req = request.Request(
-            url=settings.groq_base_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {settings.groq_api_key}",
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "User-Agent": "shelter-logistics-api/1.0",
-            },
-            method="POST",
-        )
+        client = await GroqEvaluationService.get_client()
 
         try:
-            with request.urlopen(req, timeout=settings.groq_timeout_seconds) as response:
-                response_body = response.read().decode("utf-8")
-        except error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="ignore")
+            response = await client.post(
+                settings.groq_base_url,
+                json=payload,
+                headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+            )
+            response.raise_for_status()
+            response_body = response.text
+        except httpx.HTTPStatusError as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Groq API request failed: {detail or exc.reason}",
+                detail=f"Groq API request failed: {exc.response.text}",
             ) from exc
-        except error.URLError as exc:
+        except httpx.RequestError as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Could not reach Groq API: {exc.reason}",
-            ) from exc
-        except TimeoutError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                detail="Groq API request timed out.",
+                detail=f"Could not reach Groq API: {exc}",
             ) from exc
 
         try:
