@@ -306,25 +306,45 @@ class CampDashboardService:
                 )
             )
 
-        # Process person transfers
-        for request in person_rows:
-            participants = (
-                db.query(Person.name)
-                .join(TransferParticipant, TransferParticipant.person_id == Person.id)
-                .filter(TransferParticipant.request_id == request.id)
+        # ── Batch pre-fetch: participant names ────────────────────────
+        person_request_ids = [r.id for r in person_rows]
+        participant_names_by_request: dict[int, list[str]] = {}
+        if person_request_ids:
+            participant_rows = (
+                db.query(TransferParticipant.request_id, Person.name)
+                .join(Person, TransferParticipant.person_id == Person.id)
+                .filter(TransferParticipant.request_id.in_(person_request_ids))
                 .all()
             )
-            participant_names = ", ".join([p[0] for p in participants]) or "Sin participantes"
-            
-            origin_name = (
-                db.query(Camp.name)
-                .filter(Camp.id == request.from_camp_id)
-                .scalar() or f"Campamento {request.from_camp_id}"
+            for req_id, name in participant_rows:
+                participant_names_by_request.setdefault(req_id, []).append(name)
+
+        # ── Batch pre-fetch: camp names ───────────────────────────────
+        unique_camp_ids: set[int] = set()
+        for r in person_rows:
+            if r.from_camp_id:
+                unique_camp_ids.add(r.from_camp_id)
+            if r.to_camp_id:
+                unique_camp_ids.add(r.to_camp_id)
+        camp_name_by_id: dict[int, str] = {}
+        if unique_camp_ids:
+            camp_rows = (
+                db.query(Camp.id, Camp.name)
+                .filter(Camp.id.in_(unique_camp_ids))
+                .all()
             )
-            destination_name = (
-                db.query(Camp.name)
-                .filter(Camp.id == request.to_camp_id)
-                .scalar() or f"Campamento {request.to_camp_id}"
+            camp_name_by_id = {row.id: row.name for row in camp_rows}
+
+        # Process person transfers (now O(1) lookups)
+        for request in person_rows:
+            names = participant_names_by_request.get(request.id, [])
+            participant_names = ", ".join(names) if names else "Sin participantes"
+
+            origin_name = camp_name_by_id.get(
+                request.from_camp_id, f"Campamento {request.from_camp_id}"
+            )
+            destination_name = camp_name_by_id.get(
+                request.to_camp_id, f"Campamento {request.to_camp_id}"
             )
 
             transfers.append(
@@ -333,7 +353,7 @@ class CampDashboardService:
                     origin=origin_name,
                     destination=destination_name,
                     resource=participant_names,
-                    quantity=len(participants),
+                    quantity=len(names),
                     status=CampDashboardService._map_transfer_status(
                         request.request_status, request.transfer_status
                     ),
