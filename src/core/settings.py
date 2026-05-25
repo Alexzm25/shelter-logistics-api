@@ -23,7 +23,8 @@ class Settings:
         self.cloudinary_api_key = self._get_required_env("CLOUDINARY_API_KEY")
         self.cloudinary_api_secret = self._get_required_env("CLOUDINARY_API_SECRET")
         self.cloudinary_secure = self._get_bool_env("CLOUDINARY_SECURE", True)
-        self.allowed_origins = os.getenv("ALLOWED_ORIGINS").split(",")
+        self.allowed_origins = self._get_required_env("ALLOWED_ORIGINS")
+        self.allowed_origins = [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
         if self.jwt_secret_key.lower() == "change_this_secret_key":
             raise ValueError("JWT_SECRET_KEY uses an insecure placeholder value")
