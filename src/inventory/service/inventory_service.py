@@ -1,12 +1,12 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from src.camps.models.camp import Camp
+from src.core.inventory_utils import resolve_alert_level
 from src.inventory.enums.resource_category_enum import ResourceCategoryEnum
 from src.inventory.schemas.inventory_item_response import InventoryItemResponse
 from src.inventory.models import Inventory, InventoryResource, Resource
 
 class InventoryService:
-    LOW_STOCK_MULTIPLIER = 1.5
 
     @staticmethod
     def get_inventory_by_camp(
@@ -14,6 +14,19 @@ class InventoryService:
         camp_id: int,
         category: ResourceCategoryEnum | None = None,
     ) -> list[InventoryItemResponse]:
+        _, items = InventoryService.get_inventory_by_camp_paginated(
+            db, camp_id, page=1, size=None, category=category
+        )
+        return items
+
+    @staticmethod
+    def get_inventory_by_camp_paginated(
+        db: Session,
+        camp_id: int,
+        page: int = 1,
+        size: int | None = 10,
+        category: ResourceCategoryEnum | None = None,
+    ) -> tuple[int, list[InventoryItemResponse]]:
         camp = db.query(Camp).filter(Camp.id == camp_id).first()
 
         if not camp:
@@ -22,7 +35,7 @@ class InventoryService:
                 detail=f"Camp {camp_id} not found",
             )
 
-        query = (
+        base_query = (
             db.query(InventoryResource, Resource)
             .join(Inventory, Inventory.id == InventoryResource.inventory_id)
             .join(Resource, Resource.id == InventoryResource.resource_id)
@@ -30,14 +43,21 @@ class InventoryService:
         )
 
         if category is not None:
-            query = query.filter(Resource.category == category)
+            base_query = base_query.filter(Resource.category == category)
 
-        rows = query.order_by(Resource.name.asc()).all()
+        total = base_query.count()
+
+        query = base_query.order_by(Resource.name.asc())
+
+        if size is not None:
+            query = query.offset((page - 1) * size).limit(size)
+
+        rows = query.all()
 
         items: list[InventoryItemResponse] = []
 
         for inventory_resource, resource in rows:
-            alert_level = InventoryService._resolve_alert_level(
+            alert_level = resolve_alert_level(
                 inventory_resource.quantity,
                 inventory_resource.minimum_stock_level,
             )
@@ -54,20 +74,4 @@ class InventoryService:
                 )
             )
 
-        return items
-
-    @staticmethod
-    def _resolve_alert_level(
-        quantity: int,
-        minimum_stock_level: int,
-    ) -> str:
-        if quantity <= minimum_stock_level:
-            return "critical"
-
-        if (
-            quantity
-            <= minimum_stock_level * InventoryService.LOW_STOCK_MULTIPLIER
-        ):
-            return "warning"
-
-        return "normal"
+        return total, items
