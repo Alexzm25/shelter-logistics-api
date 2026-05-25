@@ -154,7 +154,13 @@ def seed_test_db(database_url: str, sql_files: list[Path]) -> None:
 @pytest.fixture(scope="session")
 def test_engine(test_db_url: str):
     """SQLAlchemy engine bound to the seeded test database."""
-    engine = create_engine(test_db_url, pool_pre_ping=True)
+    engine = create_engine(
+        test_db_url,
+        pool_size=5,
+        max_overflow=5,
+        pool_recycle=1800,
+        pool_pre_ping=True,
+    )
     yield engine
     engine.dispose()
 
