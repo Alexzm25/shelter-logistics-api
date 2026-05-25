@@ -38,7 +38,6 @@ router = APIRouter(prefix="/human", tags=["Human Intake"])
 
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_dashboard(
-    camp_id: int = Query(default=1, ge=1),
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> DashboardResponse:
@@ -58,7 +57,7 @@ def get_dashboard(
             detail="Rol no autorizado",
         )
 
-    return HumanIntakeService.get_dashboard(db, camp_id)
+    return HumanIntakeService.get_dashboard(db, current_user.camp_id)
 
 
 @router.get("/professions", response_model=list[ProfessionOptionResponse])
@@ -73,23 +72,21 @@ def get_professions(
 @router.get("/people/available-for-profession/{profession_name}", response_model=list[PersonSummaryResponse])
 def get_available_people_for_profession(
     profession_name: str,
-    camp_id: int = Query(default=1, ge=1),
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> list[PersonSummaryResponse]:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
-    return HumanIntakeService.get_available_people_for_profession(db, profession_name, camp_id)
+    return HumanIntakeService.get_available_people_for_profession(db, profession_name, current_user.camp_id)
 
 
 @router.get("/people/by-id-card/{id_card}", response_model=PersonSummaryResponse)
 def get_person_by_id_card(
     id_card: str,
-    camp_id: int = Query(default=1, ge=1),
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> PersonSummaryResponse:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
-    return HumanIntakeService.find_person_by_id_card(db, id_card, camp_id)
+    return HumanIntakeService.find_person_by_id_card(db, id_card, current_user.camp_id)
 
 
 @router.post("/evaluate", response_model=EvaluationResponse)
