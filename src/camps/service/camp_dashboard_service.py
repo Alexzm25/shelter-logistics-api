@@ -33,12 +33,10 @@ from src.transfers.models.transfer_resource import TransferResource
 
 
 class CampDashboardService:
-    INTERNAL_TRANSFER_LIMIT = 25
-    INTER_CAMP_TRANSFER_LIMIT = 50
     ACHIEVEMENT_LIMIT = 12
 
     @staticmethod
-    def get_dashboard(db: Session, camp_id: int) -> CampDashboardResponse:
+    def get_dashboard(db: Session, camp_id: int, page: int = 1, size: int = 10) -> CampDashboardResponse:
         camp = db.query(Camp).filter(Camp.id == camp_id).first()
         if not camp:
             raise HTTPException(
@@ -48,8 +46,12 @@ class CampDashboardService:
 
         stats = CampDashboardService._build_stats(db, camp)
         inventory = CampDashboardService._build_inventory(db, camp.id)
-        inter_camp_transfers = CampDashboardService._build_inter_camp_transfers(db, camp.id)
-        internal_transfers = CampDashboardService._build_internal_transfers(db, camp.id)
+        inter_camp_total, inter_camp_transfers = CampDashboardService._build_inter_camp_transfers(
+            db, camp.id, page, size
+        )
+        internal_total, internal_transfers = CampDashboardService._build_internal_transfers(
+            db, camp.id, page, size
+        )
         achievements = CampDashboardService._build_achievements(db, camp.id)
 
         return CampDashboardResponse(
@@ -58,6 +60,8 @@ class CampDashboardService:
             inter_camp_transfers=inter_camp_transfers,
             internal_transfers=internal_transfers,
             achievements=achievements,
+            inter_camp_total=inter_camp_total,
+            internal_total=internal_total,
         )
 
     @staticmethod
@@ -233,14 +237,36 @@ class CampDashboardService:
 
     @staticmethod
     def _build_inter_camp_transfers(
-        db: Session, camp_id: int
-    ) -> list[InterCampTransferResponse]:
+        db: Session, camp_id: int, page: int = 1, size: int = 10
+    ) -> tuple[int, list[InterCampTransferResponse]]:
         from src.transfers.models.transfer_participants import TransferParticipant
         
         origin_camp = aliased(Camp)
         dest_camp = aliased(Camp)
 
-        # Query for resource transfers
+        resource_count = (
+            db.query(func.count(TransferRequest.id))
+            .filter(
+                (TransferRequest.from_camp_id == camp_id)
+                | (TransferRequest.to_camp_id == camp_id)
+            )
+            .filter(TransferRequest.is_resource_transfer.is_(True))
+            .scalar()
+        )
+
+        person_count = (
+            db.query(func.count(TransferRequest.id))
+            .filter(
+                (TransferRequest.from_camp_id == camp_id)
+                | (TransferRequest.to_camp_id == camp_id)
+            )
+            .filter(TransferRequest.is_resource_transfer.is_(False))
+            .scalar()
+        )
+
+        total = resource_count + person_count
+        offset = (page - 1) * size
+
         resource_rows = (
             db.query(
                 TransferRequest,
@@ -259,28 +285,26 @@ class CampDashboardService:
             )
             .filter(TransferRequest.is_resource_transfer.is_(True))
             .order_by(TransferRequest.created_at.desc())
-            .limit(CampDashboardService.INTER_CAMP_TRANSFER_LIMIT)
+            .offset(offset)
+            .limit(size)
             .all()
         )
 
-        # Query for person transfers
         person_rows = (
             db.query(TransferRequest)
-            .join(origin_camp, origin_camp.id == TransferRequest.from_camp_id)
-            .join(dest_camp, dest_camp.id == TransferRequest.to_camp_id)
             .filter(
                 (TransferRequest.from_camp_id == camp_id)
                 | (TransferRequest.to_camp_id == camp_id)
             )
             .filter(TransferRequest.is_resource_transfer.is_(False))
             .order_by(TransferRequest.created_at.desc())
-            .limit(CampDashboardService.INTER_CAMP_TRANSFER_LIMIT)
+            .offset(offset)
+            .limit(size)
             .all()
         )
 
         transfers: list[InterCampTransferResponse] = []
 
-        # Process resource transfers
         for request, transfer_resource, resource, origin_name, destination_name in resource_rows:
             transfers.append(
                 InterCampTransferResponse(
@@ -298,7 +322,6 @@ class CampDashboardService:
                 )
             )
 
-        # ── Batch pre-fetch: participant names ────────────────────────
         person_request_ids = [r.id for r in person_rows]
         participant_names_by_request: dict[int, list[str]] = {}
         if person_request_ids:
@@ -311,7 +334,6 @@ class CampDashboardService:
             for req_id, name in participant_rows:
                 participant_names_by_request.setdefault(req_id, []).append(name)
 
-        # ── Batch pre-fetch: camp names ───────────────────────────────
         unique_camp_ids: set[int] = set()
         for r in person_rows:
             if r.from_camp_id:
@@ -327,7 +349,6 @@ class CampDashboardService:
             )
             camp_name_by_id = {row.id: row.name for row in camp_rows}
 
-        # Process person transfers (now O(1) lookups)
         for request in person_rows:
             names = participant_names_by_request.get(request.id, [])
             participant_names = ", ".join(names) if names else "Sin participantes"
@@ -355,9 +376,8 @@ class CampDashboardService:
                 )
             )
 
-        # Sort by created_at descending and limit total
         transfers.sort(key=lambda x: x.id, reverse=True)
-        return transfers[:CampDashboardService.INTER_CAMP_TRANSFER_LIMIT]
+        return total, transfers
 
     @staticmethod
     def _map_transfer_status(
@@ -379,10 +399,20 @@ class CampDashboardService:
 
     @staticmethod
     def _build_internal_transfers(
-        db: Session, camp_id: int
-    ) -> list[InternalTransferResponse]:
+        db: Session, camp_id: int, page: int = 1, size: int = 10
+    ) -> tuple[int, list[InternalTransferResponse]]:
         origin_camp = aliased(Camp)
         dest_camp = aliased(Camp)
+
+        total = (
+            db.query(func.count(InventoryMovement.id))
+            .join(InventoryResource, InventoryResource.id == InventoryMovement.inventory_resource_id)
+            .join(Inventory, Inventory.id == InventoryResource.inventory_id)
+            .filter(Inventory.camp_id == camp_id)
+            .scalar()
+        )
+
+        offset = (page - 1) * size
 
         rows = (
             db.query(
@@ -401,7 +431,8 @@ class CampDashboardService:
             .outerjoin(dest_camp, dest_camp.id == TransferRequest.to_camp_id)
             .filter(Inventory.camp_id == camp_id)
             .order_by(InventoryMovement.created_at.desc())
-            .limit(CampDashboardService.INTERNAL_TRANSFER_LIMIT)
+            .offset(offset)
+            .limit(size)
             .all()
         )
 
@@ -427,7 +458,7 @@ class CampDashboardService:
                 )
             )
 
-        return transfers
+        return total, transfers
 
     @staticmethod
     def _map_movement_direction(movement_type: MovementTypeEnum) -> str:

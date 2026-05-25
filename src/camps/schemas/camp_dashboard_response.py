@@ -13,3 +13,5 @@ class CampDashboardResponse(BaseModel):
     inter_camp_transfers: list[InterCampTransferResponse]
     internal_transfers: list[InternalTransferResponse]
     achievements: list[AchievementResponse]
+    inter_camp_total: int
+    internal_total: int

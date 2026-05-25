@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query, Response
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
@@ -13,11 +13,17 @@ router = APIRouter(prefix="/camps", tags=["Camps"])
 
 @router.get("/{camp_id}/dashboard", response_model=CampDashboardResponse)
 def get_camp_dashboard(
+    response: Response,
     camp_id: int = Path(..., ge=1),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=10, ge=1, le=100),
     current_user: UserProfileResponse = Depends(
         require_role_permissions({ROLE_ADMIN}, {PERM_VIEW_DASHBOARD})
     ),
     db: Session = Depends(get_db),
 ) -> CampDashboardResponse:
     _ = current_user
-    return CampDashboardService.get_dashboard(db, camp_id)
+    dashboard = CampDashboardService.get_dashboard(db, camp_id, page, size)
+    response.headers["X-Total-Count"] = str(dashboard.inter_camp_total)
+    response.headers["X-Total-Count-Internal"] = str(dashboard.internal_total)
+    return dashboard
