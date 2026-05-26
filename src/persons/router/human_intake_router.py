@@ -110,6 +110,7 @@ async def register_candidate(
     camp_id: int = Form(..., ge=1),
     human_decision: Literal["PERMITIR_INGRESO", "RECHAZAR_INGRESO"] = Form(...),
     password: str = Form(...),
+    username: str | None = Form(None),
     selected_profession: str | None = Form(None),
     id_card: str | None = Form(None),
     photo_url: str | None = Form(None),
@@ -143,6 +144,7 @@ async def register_candidate(
         ),
         human_decision=human_decision,
         password=password,
+        username=(username or "").strip() or None,
         selected_profession=(selected_profession or "").strip() or None,
     )
     return await HumanIntakeService.register_candidate(db, payload)

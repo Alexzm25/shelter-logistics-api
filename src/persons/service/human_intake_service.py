@@ -139,7 +139,7 @@ class HumanIntakeService:
                     detail=f"Selected profession '{selected_profession}' does not exist.",
                 )
 
-            HumanIntakeService._upsert_worker_user(db, created_person, payload.password)
+            HumanIntakeService._upsert_worker_user(db, created_person, payload.password, payload.username)
 
         created_log = AILog(
             decision_reason=evaluation.explanation,
@@ -540,7 +540,7 @@ class HumanIntakeService:
         return True
 
     @staticmethod
-    def _upsert_worker_user(db: Session, person: Person, password: str) -> None:
+    def _upsert_worker_user(db: Session, person: Person, password: str, requested_username: str | None = None) -> None:
         normalized_password = password.strip()
         if not normalized_password:
             raise HTTPException(
@@ -555,7 +555,10 @@ class HumanIntakeService:
                 detail="Worker role not found.",
             )
 
-        username = HumanIntakeService._build_worker_username(db, person)
+        if requested_username:
+            username = requested_username.strip()
+        else:
+            username = HumanIntakeService._build_worker_username(db, person)
         password_hash = create_password_hash(normalized_password)
         existing_user = db.query(AppUser).filter(AppUser.person_id == person.id).first()
 
