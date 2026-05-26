@@ -9,9 +9,24 @@ These tests validate:
 from __future__ import annotations
 
 import re
+from unittest.mock import patch
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
+
+from src.auth.schemas.user_profile import UserProfileResponse
+
+
+def _make_mock_resources_user() -> UserProfileResponse:
+    return UserProfileResponse(
+        username="test_resources",
+        user_id=2,
+        person_id=2,
+        camp_id=1,
+        profession_name="ADMINISTRADOR",
+        role_name="GESTIÓN RECURSOS",
+    )
 
 
 def test_dashboard_query_count(test_client, seed_camp_id):
@@ -92,3 +107,19 @@ def test_dashboard_transfer_participant_names(test_client, seed_camp_id):
             assert resource != "Sin participantes" or True, (
                 "Person transfer should have participant names"
             )
+
+
+def test_dashboard_allows_resources_role(test_client, seed_camp_id):
+    """Gestión Recursos can access the camp dashboard used by Movements."""
+    with patch(
+        "src.auth.service.auth_service.AuthService.get_current_user_profile",
+        return_value=_make_mock_resources_user(),
+    ):
+        response = test_client.get(
+            f"/camps/{seed_camp_id}/dashboard",
+            cookies={"access_token": "fake-token"},
+        )
+
+    assert response.status_code == 200, (
+        f"Expected 200 for GESTIÓN RECURSOS, got {response.status_code}: {response.text}"
+    )
