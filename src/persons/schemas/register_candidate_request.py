@@ -6,4 +6,5 @@ from .candidate_input import CandidateInput
 class RegisterCandidateRequest(BaseModel):
     candidate: CandidateInput
     human_decision: Literal["PERMITIR_INGRESO", "RECHAZAR_INGRESO"]
+    password: str
     selected_profession: str | None = None

@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 from src.ai.enums.ai_decision_enum import AIDecisionEnum
 from src.ai.models.ai_log import AILog
 from src.ai.service.groq_evaluation_service import GroqEvaluationService
+from src.auth.models import AppUser, Role
+from src.auth.service.authorization import ROLE_WORKER
+from src.auth.service.security import create_password_hash
 from src.camps.models.camp import Camp  # noqa: F401
 from src.persons.enums.current_status_enum import CurrentStatusEnum
 from src.persons.enums.health_status_enum import HealthStatusEnum
@@ -135,6 +138,8 @@ class HumanIntakeService:
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"Selected profession '{selected_profession}' does not exist.",
                 )
+
+            HumanIntakeService._upsert_worker_user(db, created_person, payload.password)
 
         created_log = AILog(
             decision_reason=evaluation.explanation,
@@ -533,6 +538,61 @@ class HumanIntakeService:
         )
         db.add(assignment)
         return True
+
+    @staticmethod
+    def _upsert_worker_user(db: Session, person: Person, password: str) -> None:
+        normalized_password = password.strip()
+        if not normalized_password:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Password is required before registration.",
+            )
+
+        role = db.query(Role).filter(Role.name == ROLE_WORKER).first()
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Worker role not found.",
+            )
+
+        username = HumanIntakeService._build_worker_username(db, person)
+        password_hash = create_password_hash(normalized_password)
+        existing_user = db.query(AppUser).filter(AppUser.person_id == person.id).first()
+
+        if existing_user:
+            existing_user.username = username
+            existing_user.password_hash = password_hash
+            existing_user.role_id = role.id
+            return
+
+        db.add(
+            AppUser(
+                username=username,
+                password_hash=password_hash,
+                person_id=person.id,
+                role_id=role.id,
+            )
+        )
+
+    @staticmethod
+    def _build_worker_username(db: Session, person: Person) -> str:
+        base_username = "".join(character for character in person.name.lower().strip() if character.isalnum())
+        if not base_username:
+            base_username = f"trabajador{person.id}"
+
+        username = base_username[:20]
+        username_conflict = (
+            db.query(AppUser)
+            .filter(AppUser.username == username, AppUser.person_id != person.id)
+            .first()
+        )
+
+        if not username_conflict:
+            return username
+
+        suffix = f"-{person.id}"
+        max_base_length = max(1, 20 - len(suffix))
+        return f"{base_username[:max_base_length]}{suffix}"
 
     @staticmethod
     def _deactivate_all_active_profession_assignments(db: Session, person_id: int) -> None:
