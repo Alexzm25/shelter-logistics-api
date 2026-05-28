@@ -35,6 +35,37 @@ class GroqEvaluationService:
 
         candidate_for_ai = candidate.model_copy(update={"photo_url": None})
 
+        try:
+            candidate_json = candidate_for_ai.model_dump(mode="json")
+        except TypeError:
+            # Fallback to plain dump if mode isn't available
+            candidate_json = candidate_for_ai.model_dump()
+
+        # Compute age from birth_date if present
+        try:
+            from datetime import date as _date
+
+            bd = candidate_for_ai.birth_date
+            if isinstance(bd, _date):
+                today = _date.today()
+                age_val = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+            else:
+                
+                age_val = None
+                if isinstance(candidate_json.get("birth_date"), str):
+                    try:
+                        parts = [int(p) for p in candidate_json["birth_date"].split("-")]
+                        bd_parsed = _date(parts[0], parts[1], parts[2])
+                        today = _date.today()
+                        age_val = today.year - bd_parsed.year - ((today.month, today.day) < (bd_parsed.month, bd_parsed.day))
+                    except Exception:
+                        age_val = None
+
+            if age_val is not None:
+                candidate_json["age"] = int(age_val)
+        except Exception:
+            pass
+
         payload = {
             "model": settings.groq_model,
             "temperature": 0.2,
@@ -56,7 +87,7 @@ class GroqEvaluationService:
                     "role": "user",
                     "content": json.dumps(
                         {
-                            "candidate": candidate_for_ai.model_dump(),
+                            "candidate": candidate_json,
                             "role_coverage": role_counts,
                             "evaluation_goal": "Assess survival suitability and recommend role assignment.",
                         }

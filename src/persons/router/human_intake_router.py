@@ -1,4 +1,5 @@
 from typing import Literal
+from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
@@ -103,7 +104,7 @@ async def evaluate_candidate(
 async def register_candidate(
     first_name: str = Form(...),
     last_name: str = Form(...),
-    age: int = Form(..., ge=0, le=120),
+    birth_date: date = Form(...),
     background_info: str = Form(...),
     weight: float = Form(..., ge=0),
     height: float = Form(..., ge=0),
@@ -134,7 +135,7 @@ async def register_candidate(
         candidate=CandidateInput(
             first_name=first_name,
             last_name=last_name,
-            age=age,
+            birth_date=birth_date,
             background_info=background_info,
             weight=weight,
             height=height,
@@ -155,7 +156,7 @@ def update_person(
     person_id: int,
     first_name: str = Form(...),
     last_name: str = Form(...),
-    age: int = Form(..., ge=0, le=120),
+    birth_date: date = Form(...),
     background_info: str = Form(...),
     weight: float = Form(..., ge=0),
     height: float = Form(..., ge=0),
@@ -180,7 +181,7 @@ def update_person(
     payload = UpdatePersonRequest(
         first_name=first_name,
         last_name=last_name,
-        age=age,
+        birth_date=birth_date,
         background_info=background_info,
         weight=weight,
         height=height,
