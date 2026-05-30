@@ -103,7 +103,9 @@ class HumanIntakeService:
                 weight=payload.candidate.weight,
                 height=payload.candidate.height,
                 camp_id=payload.candidate.camp_id,
-                current_status=CurrentStatusEnum.LIBRE,
+                current_status=(
+                    CurrentStatusEnum.TRABAJANDO if allow_entry else CurrentStatusEnum.LIBRE
+                ),
                 health_status=HumanIntakeService._infer_health_status(payload.candidate.background_info),
                 camp_entry_date=datetime.now(timezone.utc),
                 photo_url=(payload.candidate.photo_url or "").strip(),
@@ -121,11 +123,13 @@ class HumanIntakeService:
             created_person.weight = payload.candidate.weight
             created_person.height = payload.candidate.height
             created_person.camp_id = payload.candidate.camp_id
-            created_person.current_status = CurrentStatusEnum.LIBRE
             created_person.health_status = HumanIntakeService._infer_health_status(payload.candidate.background_info)
             created_person.camp_entry_date = datetime.now(timezone.utc)
             created_person.photo_url = (payload.candidate.photo_url or "").strip()
             created_person.is_active = allow_entry
+            created_person.current_status = (
+                CurrentStatusEnum.TRABAJANDO if created_person.is_active else CurrentStatusEnum.LIBRE
+            )
             created_person.id_card = candidate_id_card
 
         if allow_entry:
@@ -354,14 +358,12 @@ class HumanIntakeService:
                 detail=transition_message,
             )
 
-        # HERIDO/ENFERMO/MUERTO no pueden trabajar; forzamos disponibilidad LIBRE.
         if not can_work(next_health_status):
             if payload.current_status is not None and payload.current_status != CurrentStatusEnum.LIBRE.value:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"Person with health status '{next_health_status}' cannot have working current_status.",
                 )
-            person.current_status = CurrentStatusEnum.LIBRE
 
         if payload.health_status is not None:
             person.health_status = HealthStatusEnum(payload.health_status)
