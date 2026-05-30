@@ -405,6 +405,27 @@ class HumanIntakeService:
                 detail=f"Profession '{payload.profession_name}' not found.",
             )
 
+        current_profession_name = HumanIntakeService._resolve_profession_for_person(db, person.id)
+        if not current_profession_name:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Person must have an active main profession before being reassigned.",
+            )
+
+        available_workers = HumanIntakeService._count_available_workers_for_profession(
+            db,
+            person.camp_id,
+            current_profession_name,
+        )
+        if available_workers <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Al realizar este movimiento, {current_profession_name} quedará en estado crítico "
+                    "porque no tendrá trabajadores disponibles."
+                ),
+            )
+
         # Close any existing active temporary reassignment before creating a new one
         active_temporary_assignment = (
             db.query(ProfessionAssignment)
@@ -525,6 +546,56 @@ class HumanIntakeService:
                 role_counts[role_name] += 1
 
         return role_counts
+
+    @staticmethod
+    def _count_available_workers_for_profession(db: Session, camp_id: int, profession_name: str) -> int:
+        active_people = (
+            db.query(Person.id)
+            .filter(
+                Person.camp_id == camp_id,
+                Person.is_active.is_(True),
+                Person.health_status == HealthStatusEnum.SANO,
+                Person.current_status == CurrentStatusEnum.LIBRE,
+            )
+            .all()
+        )
+
+        person_ids = [row.id for row in active_people]
+        if not person_ids:
+            return 0
+
+        profession_rows = (
+            db.query(ProfessionAssignment.person_id, Profession.name)
+            .join(Profession, ProfessionAssignment.profession_id == Profession.id)
+            .filter(
+                ProfessionAssignment.person_id.in_(person_ids),
+                ProfessionAssignment.is_active.is_(True),
+                ProfessionAssignment.is_main_profession.is_(True),
+            )
+            .all()
+        )
+        profession_by_person: dict[int, str] = {row.person_id: row.name for row in profession_rows}
+
+        reassignment_rows = (
+            db.query(ProfessionAssignment.person_id, Profession.name)
+            .join(Profession, ProfessionAssignment.profession_id == Profession.id)
+            .filter(
+                ProfessionAssignment.person_id.in_(person_ids),
+                ProfessionAssignment.is_active.is_(True),
+                ProfessionAssignment.is_main_profession.is_(False),
+            )
+            .order_by(ProfessionAssignment.person_id, ProfessionAssignment.id.desc())
+            .all()
+        )
+        reassignment_by_person: dict[int, str] = {}
+        for row in reassignment_rows:
+            reassignment_by_person[row.person_id] = row.name
+
+        return sum(
+            1
+            for person_id in person_ids
+            if (reassignment_by_person.get(person_id) or profession_by_person.get(person_id)) == profession_name
+        )
 
     @staticmethod
     def _create_profession_assignment(db: Session, person_id: int, role_name: str) -> bool:
