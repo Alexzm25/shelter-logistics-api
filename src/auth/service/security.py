@@ -21,10 +21,37 @@ def create_access_token(subject: str) -> tuple[str, datetime]:
     expire = datetime.now(UTC) + timedelta(
         minutes=settings.jwt_access_token_expire_minutes
     )
-    payload = {"sub": subject, "exp": expire}
+    payload = {"sub": subject, "exp": expire, "type": "access"}
     token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     return token, expire
 
 
-def decode_access_token(token: str) -> dict:
+def create_refresh_token(subject: str) -> tuple[str, datetime]:
+    expire = datetime.now(UTC) + timedelta(
+        days=settings.jwt_refresh_token_expire_days
+    )
+    payload = {"sub": subject, "exp": expire, "type": "refresh"}
+    token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return token, expire
+
+
+def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+
+
+def decode_access_token(token: str) -> dict:
+    payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    token_type = payload.get("type")
+    if token_type is not None and token_type != "access":
+        raise ValueError(f"Token type mismatch: expected access, got {token_type}")
+    return payload
+
+
+def decode_refresh_token(token: str) -> dict:
+    payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    token_type = payload.get("type")
+    if token_type != "refresh":
+        raise ValueError(
+            f"Token type mismatch: expected refresh, got {token_type}"
+        )
+    return payload

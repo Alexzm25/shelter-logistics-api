@@ -13,7 +13,10 @@ class Settings:
         self.jwt_secret_key = self._get_required_env("JWT_SECRET_KEY")
         self.jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
         self.jwt_access_token_expire_minutes = int(
-            os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+            os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES")
+        )
+        self.jwt_refresh_token_expire_days = int(
+            os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS")
         )
         self.groq_api_key = self._get_required_env("GROQ_API_KEY")
         self.groq_model = self._get_required_env("GROQ_MODEL")

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from src.auth.models import AppUser
@@ -5,7 +7,7 @@ from src.auth.models.role import Role
 from src.auth.schemas.login_request import LoginRequest
 from src.auth.schemas.login_response import LoginResponse
 from src.auth.schemas.user_profile import UserProfileResponse
-from src.auth.service.security import create_access_token, decode_access_token, verify_password
+from src.auth.service.security import decode_access_token, verify_password
 from src.persons.models.person import Person
 from src.camps.models.camp import Camp
 from src.persons.models.profession import Profession
@@ -41,8 +43,7 @@ class AuthService:
                 detail="Campamento no encontrado",
             )
 
-        access_token, expires_at = create_access_token(subject=user.username)
-        return LoginResponse(access_token=access_token, expires_at=expires_at, camp_id=camp.id, camp_name=camp.name)
+        return LoginResponse(access_token="", expires_at=datetime.now(UTC), camp_id=camp.id, camp_name=camp.name)
 
     @staticmethod
     def get_current_user_profile(db: Session, token: str) -> UserProfileResponse:
