@@ -11,6 +11,7 @@ from src.explorations.router.exploration_router import router as exploration_rou
 from src.production.router.production_router import router as production_router
 from src.transfers.router.transfer_router import router as transfer_router
 from src.system.router.system_router import router as system_router
+from src.ai.router.ai_configuration_router import router as ai_configuration_router
 from src.core.cloudinary import configure_cloudinary
 from src.worker_requests import router as worker_request_router
 
@@ -36,6 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(ai_configuration_router)
 app.include_router(auth_router)
 app.include_router(camp_dashboard_router)
 app.include_router(human_intake_router)
