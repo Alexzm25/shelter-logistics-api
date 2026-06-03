@@ -31,7 +31,6 @@ class WorkerRequestService:
                 worker_request_id=request.id,
                 inventory_resource_id=inv_res.id,
                 quantity=item.quantity,
-                resource_name=None,
             )
             db.add(wr_item)
             created_items.append({
