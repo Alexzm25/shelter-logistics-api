@@ -43,7 +43,6 @@ def list_worker_requests(
             id=row["id"],
             worker_name=None,
             worker_role=None,
-            resource_name=None,
             quantity=row["quantity"],
             request_status=row["request_status"],
             created_at=row["created_at"],

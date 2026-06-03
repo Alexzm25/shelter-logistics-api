@@ -1,9 +1,6 @@
 from pydantic import BaseModel
 
-
-class WorkerRequestItemCreate(BaseModel):
-    inventory_resource_id: int
-    quantity: int
+from src.worker_requests.schemas.worker_request_item_create import WorkerRequestItemCreate
 
 
 class WorkerRequestCreate(BaseModel):
