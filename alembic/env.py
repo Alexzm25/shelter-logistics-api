@@ -26,6 +26,7 @@ from src.inventory import models as inventory_models
 from src.persons import models as persons_models
 from src.production import models as production_models
 from src.transfers import models as transfers_models
+from src.worker_requests import models as worker_requests_models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
