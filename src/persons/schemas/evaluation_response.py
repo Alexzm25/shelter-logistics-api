@@ -10,3 +10,4 @@ class EvaluationResponse(BaseModel):
     suggested_profession: str
     score_breakdown: ScoreBreakdownResponse
     applied_rules: list[str]
+    config_name: str | None = None

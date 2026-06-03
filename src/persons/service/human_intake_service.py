@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.ai.enums.ai_decision_enum import AIDecisionEnum
+from src.ai.models.ai_configuration import AIConfiguration
 from src.ai.models.ai_log import AILog
 from src.ai.service.groq_evaluation_service import GroqEvaluationService
 from src.auth.models import AppUser, Role
@@ -49,7 +50,18 @@ class HumanIntakeService:
     @staticmethod
     async def evaluate_candidate(db: Session, candidate: CandidateInput) -> EvaluationResponse:
         role_counts = HumanIntakeService._get_role_counts(db, candidate.camp_id)
-        evaluation = await GroqEvaluationService.evaluate_candidate(candidate, role_counts)
+        active_config = (
+            db.query(AIConfiguration)
+            .filter(AIConfiguration.is_active.is_(True))
+            .order_by(AIConfiguration.id.desc())
+            .first()
+        )
+        evaluation = await GroqEvaluationService.evaluate_candidate(
+            candidate,
+            role_counts,
+            config_prompt=active_config.prompt if active_config else None,
+            config_rules=active_config.rules if active_config else None,
+        )
         return EvaluationResponse(
             decision=HumanIntakeService._normalize_ai_decision(evaluation.decision),
             score=evaluation.score,
@@ -57,6 +69,7 @@ class HumanIntakeService:
             suggested_profession=HumanIntakeService._ai_role_to_db_role(evaluation.suggested_profession),
             score_breakdown=evaluation.score_breakdown,
             applied_rules=evaluation.applied_rules,
+            config_name=active_config.name if active_config else None,
         )
 
     @staticmethod

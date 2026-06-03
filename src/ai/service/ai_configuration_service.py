@@ -10,6 +10,13 @@ from src.ai.schemas.ai_configuration_schema import (
 
 class AIConfigurationService:
     @staticmethod
+    def _deactivate_all(db: Session, exclude_id: int | None = None) -> None:
+        query = db.query(AIConfiguration).filter(AIConfiguration.is_active.is_(True))
+        if exclude_id is not None:
+            query = query.filter(AIConfiguration.id != exclude_id)
+        query.update({"is_active": False}, synchronize_session=False)
+
+    @staticmethod
     def create(db: Session, payload: AIConfigurationCreate) -> AIConfiguration:
         existing = db.query(AIConfiguration).filter(
             AIConfiguration.name == payload.name
@@ -19,6 +26,8 @@ class AIConfigurationService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A configuration with this name already exists.",
             )
+        if payload.is_active:
+            AIConfigurationService._deactivate_all(db)
         config = AIConfiguration(
             name=payload.name,
             description=payload.description,
@@ -70,6 +79,8 @@ class AIConfigurationService:
         if payload.rules is not None:
             config.rules = payload.rules
         if payload.is_active is not None:
+            if payload.is_active:
+                AIConfigurationService._deactivate_all(db, exclude_id=config_id)
             config.is_active = payload.is_active
         db.commit()
         db.refresh(config)

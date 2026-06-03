@@ -25,8 +25,23 @@ class GroqEvaluationService:
             await cls._client.aclose()
             cls._client = None
 
+    _DEFAULT_SYSTEM_PROMPT = (
+        "You are an intake evaluator for a survival camp. "
+        "Return only JSON with this exact schema: "
+        "{decision, score, explanation, suggested_profession, score_breakdown, applied_rules}. "
+        "Allowed decision values: APROBADO or RECHAZADO. "
+        "Allowed suggested_profession values: MEDIC, EXPLORER, FARMER, NOT_ASSIGNED. "
+        "score_breakdown must include integers for resilience, medical_experience, defense_experience, context. "
+        "score must be an integer between 0 and 100."
+    )
+
     @staticmethod
-    async def evaluate_candidate(candidate: CandidateInput, role_counts: dict[str, int]) -> EvaluationResponse:
+    async def evaluate_candidate(
+        candidate: CandidateInput,
+        role_counts: dict[str, int],
+        config_prompt: str | None = None,
+        config_rules: str | None = None,
+    ) -> EvaluationResponse:
         if not settings.groq_api_key:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -50,7 +65,7 @@ class GroqEvaluationService:
                 today = _date.today()
                 age_val = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
             else:
-                
+
                 age_val = None
                 if isinstance(candidate_json.get("birth_date"), str):
                     try:
@@ -66,33 +81,33 @@ class GroqEvaluationService:
         except Exception:
             pass
 
+        system_prompt = config_prompt or GroqEvaluationService._DEFAULT_SYSTEM_PROMPT
+        schema_suffix = (
+            " Return only JSON with this exact schema: "
+            "{decision, score, explanation, suggested_profession, score_breakdown, applied_rules}. "
+            "Allowed decision values: APROBADO or RECHAZADO. "
+            "Allowed suggested_profession values: MEDIC, EXPLORER, FARMER, NOT_ASSIGNED. "
+            "score_breakdown must include integers for resilience, medical_experience, defense_experience, context. "
+            "score must be an integer between 0 and 100."
+        )
+        if config_prompt and schema_suffix.strip() not in config_prompt:
+            system_prompt = config_prompt + schema_suffix
+
+        user_content: dict = {
+            "candidate": candidate_json,
+            "role_coverage": role_counts,
+            "evaluation_goal": "Assess survival suitability and recommend role assignment.",
+        }
+        if config_rules:
+            user_content["rules"] = config_rules
+
         payload = {
             "model": settings.groq_model,
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an intake evaluator for a survival camp. "
-                        "Return only JSON with this exact schema: "
-                        "{decision, score, explanation, suggested_profession, score_breakdown, applied_rules}. "
-                        "Allowed decision values: APROBADO or RECHAZADO. "
-                        "Allowed suggested_profession values: MEDIC, EXPLORER, FARMER, NOT_ASSIGNED. "
-                        "score_breakdown must include integers for resilience, medical_experience, defense_experience, context. "
-                        "score must be an integer between 0 and 100."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": json.dumps(
-                        {
-                            "candidate": candidate_json,
-                            "role_coverage": role_counts,
-                            "evaluation_goal": "Assess survival suitability and recommend role assignment.",
-                        }
-                    ),
-                },
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(user_content)},
             ],
         }
 
