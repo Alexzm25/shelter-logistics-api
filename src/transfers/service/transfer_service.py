@@ -5,7 +5,10 @@ from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
 from src.camps.models.camp import Camp
+from src.core.realtime_events import inventory_events
+from src.inventory.enums import MovementTypeEnum
 from src.inventory.models.inventory import Inventory
+from src.inventory.models.inventory_movement import InventoryMovement
 from src.inventory.models.inventory_resource import InventoryResource
 from src.inventory.models.resource import Resource
 from src.persons.models.person import Person
@@ -262,6 +265,43 @@ class TransferService:
                 detail="Exploradores inválidos.",
             )
 
+        transfer_resources = (
+            db.query(TransferResource)
+            .filter(TransferResource.request_id == request.id)
+            .all()
+        )
+        inventory_resources_by_resource_id: dict[int, InventoryResource] = {}
+
+        if request.is_resource_transfer:
+            if not transfer_resources:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="La solicitud no tiene recursos asociados.",
+                )
+
+            inventory_resources_by_resource_id = (
+                TransferService._get_transfer_inventory_resources(
+                    db,
+                    current_camp_id,
+                    transfer_resources,
+                )
+            )
+
+            for transfer_resource in transfer_resources:
+                inventory_resource = inventory_resources_by_resource_id.get(
+                    transfer_resource.resource_id
+                )
+                if inventory_resource is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Recurso no encontrado en el inventario del campamento.",
+                    )
+                if inventory_resource.quantity < transfer_resource.transfer_amount:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Stock insuficiente para aprobar la solicitud.",
+                    )
+
         for person_id in valid_ids:
             db.add(
                 TransferParticipant(
@@ -271,9 +311,30 @@ class TransferService:
                 )
             )
 
+        if request.is_resource_transfer:
+            for transfer_resource in transfer_resources:
+                inventory_resource = inventory_resources_by_resource_id[
+                    transfer_resource.resource_id
+                ]
+                inventory_resource.quantity -= transfer_resource.transfer_amount
+                db.add(
+                    InventoryMovement(
+                        quantity=transfer_resource.transfer_amount,
+                        inventory_resource_id=inventory_resource.id,
+                        movement_type=MovementTypeEnum.TRANSFERENCIA,
+                        transfer_request_id=request.id,
+                    )
+                )
+
         request.request_status = RequestStatusEnum.APROBADO
         request.transfer_status = TransferStatusEnum.DE_CAMINO
         db.commit()
+        if request.is_resource_transfer:
+            inventory_events.publish(
+                camp_id=current_camp_id,
+                source="transfer_request.approved",
+                metadata={"request_id": request.id},
+            )
 
     @staticmethod
     def reject_request(db: Session, current_camp_id: int, request_id: int) -> None:
@@ -299,6 +360,24 @@ class TransferService:
         request.request_status = RequestStatusEnum.RECHAZADO
         request.transfer_status = None
         db.commit()
+
+    @staticmethod
+    def _get_transfer_inventory_resources(
+        db: Session,
+        camp_id: int,
+        transfer_resources: list[TransferResource],
+    ) -> dict[int, InventoryResource]:
+        resource_ids = {transfer_resource.resource_id for transfer_resource in transfer_resources}
+        rows = (
+            db.query(InventoryResource)
+            .join(Inventory, Inventory.id == InventoryResource.inventory_id)
+            .filter(
+                Inventory.camp_id == camp_id,
+                InventoryResource.resource_id.in_(resource_ids),
+            )
+            .all()
+        )
+        return {inventory_resource.resource_id: inventory_resource for inventory_resource in rows}
 
     @staticmethod
     def _build_transfer_responses(

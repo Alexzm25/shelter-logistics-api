@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from src.core.realtime_events import inventory_events
 from src.explorations.enums import ExplorationStatusEnum
 from src.explorations.models.exploration import Exploration
 from src.explorations.models.exploration_loot import ExplorationLoot
@@ -336,6 +337,11 @@ class ExplorationService:
         db.add_all(loot_records)
         db.add_all(movement_records)
         db.commit()
+        inventory_events.publish(
+            camp_id=exploration.camp_id,
+            source="exploration.returned",
+            metadata={"exploration_id": exploration.id},
+        )
         for loot in loot_records:
             db.refresh(loot)
 
