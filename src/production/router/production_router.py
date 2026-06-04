@@ -9,6 +9,10 @@ from src.auth.service.authorization import (
     get_current_user_from_token,
 )
 from src.core.database import get_db
+from src.production.schemas.production_audit_response import (
+    ProductionAuditResponse,
+    ProductionAutomationStatusResponse,
+)
 from src.production.schemas.production_request import RegisterProductionRequest
 from src.production.schemas.production_response import RegisterProductionResponse
 from src.production.service.production_service import ProductionService
@@ -44,3 +48,20 @@ def register_production(
         person_id=current_user.person_id,
         payload=payload,
     )
+
+@router.get("/automation/status", response_model=ProductionAutomationStatusResponse)
+def get_automation_status(
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> ProductionAutomationStatusResponse:
+    return ProductionService.get_automation_status(db, current_user.camp_id)
+
+
+@router.get("/audit", response_model=list[ProductionAuditResponse])
+def list_production_audit(
+    limit: int = 10,
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> list[ProductionAuditResponse]:
+    bounded_limit = min(max(limit, 1), 50)
+    return ProductionService.list_audits(db, current_user.camp_id, bounded_limit)

@@ -241,6 +241,38 @@ CREATE INDEX "IX_Relationship15" ON "inventory" ("camp_id")
 ALTER TABLE "inventory" ADD CONSTRAINT "PK_inventory" PRIMARY KEY ("id")
 ;
 
+-- Table worker_request
+
+CREATE TABLE "worker_request"
+(
+  "id" Serial NOT NULL,
+  "created_at" Timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  "camp_id" Integer NOT NULL,
+  "worker_person_id" Integer NOT NULL,
+  "request_status_id" Integer DEFAULT 0 NOT NULL,
+  "request_type" Character varying(40) DEFAULT 'RESOURCE_REQUEST' NOT NULL,
+  "reason" Text,
+  "rejection_reason" Text
+)
+WITH (
+  autovacuum_enabled=true)
+;
+COMMENT ON COLUMN "worker_request"."id" IS 'Worker request ID'
+;
+COMMENT ON COLUMN "worker_request"."created_at" IS 'Timestamp when worker request was created'
+;
+COMMENT ON COLUMN "worker_request"."request_type" IS 'Worker request type: RESOURCE_REQUEST or QUOTA_SHORTFALL'
+;
+
+CREATE INDEX "IX_Relationship40" ON "worker_request" ("camp_id")
+;
+
+CREATE INDEX "IX_Relationship41" ON "worker_request" ("worker_person_id")
+;
+
+ALTER TABLE "worker_request" ADD CONSTRAINT "PK_worker_request" PRIMARY KEY ("id")
+;
+
 -- Table transfer_request
 
 CREATE TABLE "transfer_request"
@@ -430,6 +462,32 @@ CREATE INDEX "IX_Relationship10" ON "inventory_resource" ("resource_id")
 ;
 
 ALTER TABLE "inventory_resource" ADD CONSTRAINT "PK_inventory_resource" PRIMARY KEY ("id")
+;
+
+-- Table worker_request_item
+
+CREATE TABLE "worker_request_item"
+(
+  "id" Serial NOT NULL,
+  "worker_request_id" Integer NOT NULL,
+  "inventory_resource_id" Integer NOT NULL,
+  "quantity" Integer NOT NULL
+)
+WITH (
+  autovacuum_enabled=true)
+;
+COMMENT ON COLUMN "worker_request_item"."id" IS 'Worker request item ID'
+;
+COMMENT ON COLUMN "worker_request_item"."quantity" IS 'Requested quantity'
+;
+
+CREATE INDEX "IX_Relationship42" ON "worker_request_item" ("worker_request_id")
+;
+
+CREATE INDEX "IX_Relationship43" ON "worker_request_item" ("inventory_resource_id")
+;
+
+ALTER TABLE "worker_request_item" ADD CONSTRAINT "PK_worker_request_item" PRIMARY KEY ("id")
 ;
 
 -- Table inventory_movement
@@ -722,6 +780,31 @@ CREATE INDEX "IX_Relationship37" ON "production_log" ("profession_id")
 ALTER TABLE "production_log" ADD CONSTRAINT "PK_production_log" PRIMARY KEY ("id")
 ;
 
+-- Table production_run_audit
+
+CREATE TABLE "production_run_audit"
+(
+  "id" Serial NOT NULL,
+  "executed_at" Timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  "camp_id" Integer NOT NULL,
+  "resources_produced" Json NOT NULL
+)
+WITH (
+  autovacuum_enabled=true)
+;
+COMMENT ON COLUMN "production_run_audit"."id" IS 'ID for each automatic production run audit'
+;
+COMMENT ON COLUMN "production_run_audit"."executed_at" IS 'Timestamp when automatic production run was executed'
+;
+COMMENT ON COLUMN "production_run_audit"."resources_produced" IS 'JSON summary of resources produced by the automatic run'
+;
+
+CREATE INDEX "IX_Relationship44" ON "production_run_audit" ("camp_id", "executed_at")
+;
+
+ALTER TABLE "production_run_audit" ADD CONSTRAINT "PK_production_run_audit" PRIMARY KEY ("id")
+;
+
 -- Table ai_configuration
 
 CREATE TABLE "ai_configuration"
@@ -873,6 +956,38 @@ ALTER TABLE "inventory"
   ADD CONSTRAINT "Relationship15"
     FOREIGN KEY ("camp_id")
     REFERENCES "camp" ("id")
+      ON DELETE NO ACTION
+      ON UPDATE NO ACTION
+;
+
+ALTER TABLE "worker_request"
+  ADD CONSTRAINT "Relationship40"
+    FOREIGN KEY ("camp_id")
+    REFERENCES "camp" ("id")
+      ON DELETE NO ACTION
+      ON UPDATE NO ACTION
+;
+
+ALTER TABLE "worker_request"
+  ADD CONSTRAINT "Relationship41"
+    FOREIGN KEY ("worker_person_id")
+    REFERENCES "person" ("id")
+      ON DELETE NO ACTION
+      ON UPDATE NO ACTION
+;
+
+ALTER TABLE "worker_request_item"
+  ADD CONSTRAINT "Relationship42"
+    FOREIGN KEY ("worker_request_id")
+    REFERENCES "worker_request" ("id")
+      ON DELETE NO ACTION
+      ON UPDATE NO ACTION
+;
+
+ALTER TABLE "worker_request_item"
+  ADD CONSTRAINT "Relationship43"
+    FOREIGN KEY ("inventory_resource_id")
+    REFERENCES "inventory_resource" ("id")
       ON DELETE NO ACTION
       ON UPDATE NO ACTION
 ;
@@ -1029,6 +1144,14 @@ ALTER TABLE "production_log"
       ON UPDATE NO ACTION
 ;
 
+ALTER TABLE "production_run_audit"
+  ADD CONSTRAINT "Relationship44"
+    FOREIGN KEY ("camp_id")
+    REFERENCES "camp" ("id")
+      ON DELETE NO ACTION
+      ON UPDATE NO ACTION
+;
+
 ALTER TABLE "transfer_participants"
   ADD CONSTRAINT "Relationship38"
     FOREIGN KEY ("person_id")
@@ -1044,4 +1167,3 @@ ALTER TABLE "transfer_participants"
       ON DELETE NO ACTION
       ON UPDATE NO ACTION
 ;
-
