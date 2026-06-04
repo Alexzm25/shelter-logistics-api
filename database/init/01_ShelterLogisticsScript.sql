@@ -722,6 +722,37 @@ CREATE INDEX "IX_Relationship37" ON "production_log" ("profession_id")
 ALTER TABLE "production_log" ADD CONSTRAINT "PK_production_log" PRIMARY KEY ("id")
 ;
 
+-- Table ai_configuration
+
+CREATE TABLE "ai_configuration"
+(
+  "id" Serial NOT NULL,
+  "name" Character varying(100) NOT NULL,
+  "description" Text,
+  "prompt" Text NOT NULL,
+  "rules" Text,
+  "is_active" Boolean DEFAULT TRUE NOT NULL,
+  "created_at" Timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  "updated_at" Timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+)
+WITH (
+  autovacuum_enabled=true)
+;
+COMMENT ON COLUMN "ai_configuration"."id" IS 'AI configuration ID'
+;
+COMMENT ON COLUMN "ai_configuration"."name" IS 'Configuration name'
+;
+COMMENT ON COLUMN "ai_configuration"."prompt" IS 'Base prompt for the AI'
+;
+COMMENT ON COLUMN "ai_configuration"."is_active" IS 'Whether this configuration is currently active'
+;
+
+ALTER TABLE "ai_configuration" ADD CONSTRAINT "PK_ai_configuration" PRIMARY KEY ("id")
+;
+
+ALTER TABLE "ai_configuration" ADD CONSTRAINT "ai_configuration_name" UNIQUE ("name")
+;
+
 -- Table transfer_participants
 
 CREATE TABLE "transfer_participants"
