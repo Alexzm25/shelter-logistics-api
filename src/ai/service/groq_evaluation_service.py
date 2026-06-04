@@ -26,13 +26,14 @@ class GroqEvaluationService:
             cls._client = None
 
     _DEFAULT_SYSTEM_PROMPT = (
-        "You are an intake evaluator for a survival camp. "
-        "Return only JSON with this exact schema: "
+        "Eres un evaluador de ingreso para un campamento de supervivencia post-apocalíptico. "
+        "Devuelve únicamente JSON con el siguiente esquema exacto: "
         "{decision, score, explanation, suggested_profession, score_breakdown, applied_rules}. "
-        "Allowed decision values: APROBADO or RECHAZADO. "
-        "Allowed suggested_profession values: MEDIC, EXPLORER, FARMER, NOT_ASSIGNED. "
-        "score_breakdown must include integers for resilience, medical_experience, defense_experience, context. "
-        "score must be an integer between 0 and 100."
+        "Valores permitidos para decision: APROBADO o RECHAZADO. "
+        "Valores permitidos para suggested_profession: MEDICO, EXPLORADOR, AGRICULTOR, SIN_ASIGNAR. "
+        "score_breakdown debe incluir enteros para: resilience, medical_experience, defense_experience, context. "
+        "score debe ser un entero entre 0 y 100. "
+        "Responde siempre en español."
     )
 
     @staticmethod
@@ -83,12 +84,13 @@ class GroqEvaluationService:
 
         system_prompt = config_prompt or GroqEvaluationService._DEFAULT_SYSTEM_PROMPT
         schema_suffix = (
-            " Return only JSON with this exact schema: "
+            " Devuelve únicamente JSON con el siguiente esquema exacto: "
             "{decision, score, explanation, suggested_profession, score_breakdown, applied_rules}. "
-            "Allowed decision values: APROBADO or RECHAZADO. "
-            "Allowed suggested_profession values: MEDIC, EXPLORER, FARMER, NOT_ASSIGNED. "
-            "score_breakdown must include integers for resilience, medical_experience, defense_experience, context. "
-            "score must be an integer between 0 and 100."
+            "Valores permitidos para decision: APROBADO o RECHAZADO. "
+            "Valores permitidos para suggested_profession: MEDICO, EXPLORADOR, AGRICULTOR, SIN_ASIGNAR. "
+            "score_breakdown debe incluir enteros para: resilience, medical_experience, defense_experience, context. "
+            "score debe ser un entero entre 0 y 100. "
+            "Responde siempre en español."
         )
         if config_prompt and schema_suffix.strip() not in config_prompt:
             system_prompt = config_prompt + schema_suffix
@@ -96,7 +98,7 @@ class GroqEvaluationService:
         user_content: dict = {
             "candidate": candidate_json,
             "role_coverage": role_counts,
-            "evaluation_goal": "Assess survival suitability and recommend role assignment.",
+            "evaluation_goal": "Evalúa la idoneidad del candidato para la supervivencia y recomienda una profesión.",
         }
         if config_rules:
             user_content["rules"] = config_rules

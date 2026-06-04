@@ -41,11 +41,14 @@ from src.persons.schemas.human_intake_schemas import (
 
 class HumanIntakeService:
     ROLE_DB_NAMES = {
+        "MEDICO": "MEDICO",
+        "EXPLORADOR": "EXPLORADOR",
+        "AGRICULTOR": "AGRICULTOR",
         "MEDIC": "MEDICO",
         "EXPLORER": "EXPLORADOR",
         "FARMER": "AGRICULTOR",
     }
-    TRACKED_ROLES = ("MEDIC", "EXPLORER", "FARMER")
+    TRACKED_ROLES = ("MEDICO", "EXPLORADOR", "AGRICULTOR")
 
     @staticmethod
     async def evaluate_candidate(db: Session, candidate: CandidateInput) -> EvaluationResponse:
