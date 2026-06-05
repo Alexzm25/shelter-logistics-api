@@ -69,6 +69,10 @@ INSERT INTO permission (name, description)
 SELECT 'CURAR_PERSONAS', 'Registrar curaciones y gestionar estado de salud (médico)'
 WHERE NOT EXISTS (SELECT 1 FROM permission WHERE name = 'CURAR_PERSONAS');
 
+INSERT INTO permission (name, description)
+SELECT 'VER_PAGINA_MOVIMIENTOS', 'Ver la página de Movimientos (solo admin)'
+WHERE NOT EXISTS (SELECT 1 FROM permission WHERE name = 'VER_PAGINA_MOVIMIENTOS');
+
 -- Role -> Permission associations
 -- ADMINISTRADOR SISTEMA: puede ver todas las páginas y tiene control total en gestión humana
 INSERT INTO role_permission (role_id, permission_id)
@@ -125,6 +129,13 @@ SELECT (SELECT id FROM role WHERE name = 'ADMINISTRADOR SISTEMA'), (SELECT id FR
 WHERE NOT EXISTS (
     SELECT 1 FROM role_permission rp WHERE rp.role_id = (SELECT id FROM role WHERE name = 'ADMINISTRADOR SISTEMA')
     AND rp.permission_id = (SELECT id FROM permission WHERE name = 'GESTION_HUMANA_TOTAL')
+);
+
+INSERT INTO role_permission (role_id, permission_id)
+SELECT (SELECT id FROM role WHERE name = 'ADMINISTRADOR SISTEMA'), (SELECT id FROM permission WHERE name = 'VER_PAGINA_MOVIMIENTOS')
+WHERE NOT EXISTS (
+    SELECT 1 FROM role_permission rp WHERE rp.role_id = (SELECT id FROM role WHERE name = 'ADMINISTRADOR SISTEMA')
+    AND rp.permission_id = (SELECT id FROM permission WHERE name = 'VER_PAGINA_MOVIMIENTOS')
 );
 
 -- TRABAJADOR: verá la página de trabajador, podrá solicitar recursos y ver logros
