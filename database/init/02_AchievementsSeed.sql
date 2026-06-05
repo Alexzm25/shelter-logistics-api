@@ -17,8 +17,8 @@ INSERT INTO "achievement" (
 -- 2. Recursos acumulados — nivel avanzado
 (
     'Despensa Llena',
-    'Tu campamento alcanzó 500 unidades totales de recursos almacenados en el inventario.',
-    500,
+    'Tu campamento alcanzó 1000 unidades totales de recursos almacenados en el inventario.',
+    1000,
     'despensa_llena'
 ),
 

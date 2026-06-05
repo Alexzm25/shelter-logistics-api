@@ -10,7 +10,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
     command: >
-      sh -c "python -m compileall -q ${APP_SOURCE_DIR} &&
+      sh -c "alembic upgrade head &&
+      python database/seed.py &&
+      python -m compileall -q /app/src &&
       uvicorn ${UVICORN_APP} --host ${UVICORN_HOST} --port ${UVICORN_PORT}"
     ports:
       - "${APP_PORT}:${UVICORN_PORT}"
@@ -34,7 +36,6 @@ services:
       - "${POSTGRES_PORT}:${POSTGRES_CONTAINER_PORT}"
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d:ro
       
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -p $${POSTGRES_CONTAINER_PORT}"]
