@@ -220,7 +220,7 @@ class ExplorationService:
             camp_id=camp_id,
             extra_days=payload.extra_days,
             ration_per_person=payload.ration_per_person,
-            max_extra_days=payload.max_extra_days,
+            max_extra_days=20,
             estimated_days=payload.estimated_days,
         )
 

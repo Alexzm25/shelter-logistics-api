@@ -22,6 +22,7 @@ from src.explorations.schemas.available_explorer import AvailableExplorerRespons
 from src.explorations.schemas.create_exploration import (
     CreateExplorationRequest,
     CreateExplorationResponse,
+    MaxExtraDaysResponse,
 )
 from src.explorations.schemas.cancel_exploration import CancelExplorationResponse
 from src.explorations.schemas.exploration_list import ExplorationListResponse
@@ -134,6 +135,13 @@ def create_exploration(
         payload=payload,
         camp_id=current_user.camp_id,
     )
+
+@router.get(
+    "/max-extra-days",
+    response_model=MaxExtraDaysResponse,
+)
+def get_max_extra_days() -> MaxExtraDaysResponse:
+    return MaxExtraDaysResponse(max_extra_days=20)
 
 @router.get(
     "/available-explorers",
