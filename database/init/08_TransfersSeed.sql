@@ -10,54 +10,54 @@
 -- distinguirlas de ingresos reales por la app)
 -- -------------------------------------------------------
 
-INSERT INTO "person" ("name", "last_name", "age", "background_info", "weight", "height",
+INSERT INTO "person" ("name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date", "photo_url", "is_active", "id_card")
-SELECT 'Marco', 'Villanueva', 34,
+SELECT 'Marco', 'Villanueva', '1992-01-01',
     'Ex-militar reconvertido en explorador. Conoce el terreno al norte del valle.',
     78.50, 1.82,
     (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1),
     'LIBRE', 'SANO', '2025-01-15 08:00:00+00', '', TRUE, 'TEST-SEED-001'
 WHERE NOT EXISTS (SELECT 1 FROM person WHERE id_card = 'TEST-SEED-001');
 
-INSERT INTO "person" ("name", "last_name", "age", "background_info", "weight", "height",
+INSERT INTO "person" ("name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date", "photo_url", "is_active", "id_card")
-SELECT 'Sofía', 'Medrano', 28,
+SELECT 'Sofía', 'Medrano', '1998-01-01',
     'Médica rural con experiencia en zonas de conflicto armado.',
     62.00, 1.65,
     (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1),
     'TRABAJANDO', 'SANO', '2025-01-20 09:00:00+00', '', TRUE, 'TEST-SEED-002'
 WHERE NOT EXISTS (SELECT 1 FROM person WHERE id_card = 'TEST-SEED-002');
 
-INSERT INTO "person" ("name", "last_name", "age", "background_info", "weight", "height",
+INSERT INTO "person" ("name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date", "photo_url", "is_active", "id_card")
-SELECT 'Andrés', 'Palacios', 41,
+SELECT 'Andrés', 'Palacios', '1985-01-01',
     'Agricultor con conocimiento de cultivos de subsistencia en climas áridos.',
     84.00, 1.78,
     (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1),
     'TRABAJANDO', 'SANO', '2025-02-01 07:30:00+00', '', TRUE, 'TEST-SEED-003'
 WHERE NOT EXISTS (SELECT 1 FROM person WHERE id_card = 'TEST-SEED-003');
 
-INSERT INTO "person" ("name", "last_name", "age", "background_info", "weight", "height",
+INSERT INTO "person" ("name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date", "photo_url", "is_active", "id_card")
-SELECT 'Valentina', 'Cruz', 25,
+SELECT 'Valentina', 'Cruz', '2001-01-01',
     'Exploradora con habilidades de cartografía y orientación en terreno hostil.',
     58.00, 1.68,
     (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1),
     'LIBRE', 'SANO', '2025-02-10 11:00:00+00', '', TRUE, 'TEST-SEED-004'
 WHERE NOT EXISTS (SELECT 1 FROM person WHERE id_card = 'TEST-SEED-004');
 
-INSERT INTO "person" ("name", "last_name", "age", "background_info", "weight", "height",
+INSERT INTO "person" ("name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date", "photo_url", "is_active", "id_card")
-SELECT 'Rodrigo', 'Fuentes', 37,
+SELECT 'Rodrigo', 'Fuentes', '1989-01-01',
     'Mecánico y explorador. Especialista en recuperación de equipos en campo abierto.',
     75.00, 1.75,
     (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1),
     'LIBRE', 'SANO', '2025-02-18 10:00:00+00', '', TRUE, 'TEST-SEED-005'
 WHERE NOT EXISTS (SELECT 1 FROM person WHERE id_card = 'TEST-SEED-005');
 
-INSERT INTO "person" ("name", "last_name", "age", "background_info", "weight", "height",
+INSERT INTO "person" ("name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date", "photo_url", "is_active", "id_card")
-SELECT 'Carmen', 'Ibáñez', 45,
+SELECT 'Carmen', 'Ibáñez', '1981-01-01',
     'Ex-enfermera de campo. Experta en triaje y medicina de emergencia.',
     65.00, 1.60,
     (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1),

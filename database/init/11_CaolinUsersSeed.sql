@@ -7,11 +7,11 @@
 -- 1. Persona y usuario administrador
 -- -------------------------------------------------------------
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info", "weight", "height",
+    "name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date",
     "photo_url", "is_active", "id_card"
 )
-SELECT 'Admin', 'Sistema', 35,
+SELECT 'Admin', 'Sistema', '1991-06-19',
     'Fundador y administrador principal del campamento. Sobreviviente desde el dia 1 del apocalipsis.',
     75.00, 1.75,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Caolin' LIMIT 1),
@@ -30,12 +30,12 @@ WHERE NOT EXISTS (SELECT 1 FROM "app_user" WHERE "username" = 'adminCaolin');
 -- 2. Personas TRABAJADOR con profesiones distintas
 -- -------------------------------------------------------------
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info",
+    "name", "last_name", "birth_date", "background_info",
     "weight", "height", "camp_id",
     "current_status", "health_status",
     "camp_entry_date", "photo_url", "is_active", "id_card"
 )
-SELECT 'Carlos', 'Mendoza', 34,
+SELECT 'Carlos', 'Mendoza', '1992-04-03',
     'Explorador experimentado que sobrevivio cruzando zonas contaminadas durante meses.',
     75.50, 1.78,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Caolin' LIMIT 1),
@@ -44,12 +44,12 @@ SELECT 'Carlos', 'Mendoza', 34,
 WHERE NOT EXISTS (SELECT 1 FROM "person" WHERE "id_card" = 'ID-EXPLORADOR-001');
 
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info",
+    "name", "last_name", "birth_date", "background_info",
     "weight", "height", "camp_id",
     "current_status", "health_status",
     "camp_entry_date", "photo_url", "is_active", "id_card"
 )
-SELECT 'Lucia', 'Ramirez', 28,
+SELECT 'Lucia', 'Ramirez', '1998-06-08',
     'Agricultora que mantuvo vivos a su comunidad cultivando en condiciones extremas.',
     62.30, 1.65,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Caolin' LIMIT 1),
@@ -58,12 +58,12 @@ SELECT 'Lucia', 'Ramirez', 28,
 WHERE NOT EXISTS (SELECT 1 FROM "person" WHERE "id_card" = 'ID-AGRICULTORA-002');
 
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info",
+    "name", "last_name", "birth_date", "background_info",
     "weight", "height", "camp_id",
     "current_status", "health_status",
     "camp_entry_date", "photo_url", "is_active", "id_card"
 )
-SELECT 'Andres', 'Torres', 41,
+SELECT 'Andres', 'Torres', '1985-12-11',
     'Medico de campo que atendio heridos durante el colapso de las ciudades.',
     80.10, 1.82,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Caolin' LIMIT 1),
@@ -156,11 +156,11 @@ WHERE NOT EXISTS (
 -- 5. Personas para roles faltantes
 -- -------------------------------------------------------------
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info", "weight", "height",
+    "name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date",
     "photo_url", "is_active", "id_card"
 )
-SELECT 'Rosa', 'Ibarra', 39,
+SELECT 'Rosa', 'Ibarra', '1987-10-07',
     'Encargada de logistica y control de recursos del campamento.',
     63.20, 1.66,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Caolin' LIMIT 1),
@@ -169,11 +169,11 @@ SELECT 'Rosa', 'Ibarra', 39,
 WHERE NOT EXISTS (SELECT 1 FROM "person" WHERE "id_card" = 'ID-RECURSOS-CAOLIN-001');
 
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info", "weight", "height",
+    "name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date",
     "photo_url", "is_active", "id_card"
 )
-SELECT 'Miguel', 'Soto', 33,
+SELECT 'Miguel', 'Soto', '1993-04-18',
     'Coordinador de viajes y comunicaciones con otros campamentos.',
     71.40, 1.74,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Caolin' LIMIT 1),

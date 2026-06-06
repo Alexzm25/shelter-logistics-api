@@ -8,11 +8,11 @@
 -- 1. Persona y usuario administrador
 -- -------------------------------------------------------------
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info", "weight", "height",
+    "name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date",
     "photo_url", "is_active", "id_card"
 )
-SELECT 'Sofia', 'Garriga', 38,
+SELECT 'Sofia', 'Garriga', '1988-03-15',
     'Fundadora y administradora principal del campamento. Exfuncionaria municipal que organizo la evacuacion de civiles durante el colapso.',
     67.00, 1.70,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Fayenza' LIMIT 1),
@@ -31,12 +31,12 @@ WHERE NOT EXISTS (SELECT 1 FROM "app_user" WHERE "username" = 'adminFayenza');
 -- 2. Personas TRABAJADOR con profesiones distintas
 -- -------------------------------------------------------------
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info",
+    "name", "last_name", "birth_date", "background_info",
     "weight", "height", "camp_id",
     "current_status", "health_status",
     "camp_entry_date", "photo_url", "is_active", "id_card"
 )
-SELECT 'Pablo', 'Romero', 30,
+SELECT 'Pablo', 'Romero', '1996-07-22',
     'Explorador nato que sobrevivio meses en zonas de alta peligrosidad, experto en orientacion y reconocimiento de terreno.',
     78.00, 1.80,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Fayenza' LIMIT 1),
@@ -45,12 +45,12 @@ SELECT 'Pablo', 'Romero', 30,
 WHERE NOT EXISTS (SELECT 1 FROM "person" WHERE "id_card" = 'ID-EXPLORADOR-FAYENZA-001');
 
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info",
+    "name", "last_name", "birth_date", "background_info",
     "weight", "height", "camp_id",
     "current_status", "health_status",
     "camp_entry_date", "photo_url", "is_active", "id_card"
 )
-SELECT 'Maria', 'Valverde', 26,
+SELECT 'Maria', 'Valverde', '2000-06-08',
     'Agricultora que domina tecnicas de cultivo en suelos degradados y condiciones de escasez extrema.',
     58.50, 1.62,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Fayenza' LIMIT 1),
@@ -59,12 +59,12 @@ SELECT 'Maria', 'Valverde', 26,
 WHERE NOT EXISTS (SELECT 1 FROM "person" WHERE "id_card" = 'ID-AGRICULTORA-FAYENZA-002');
 
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info",
+    "name", "last_name", "birth_date", "background_info",
     "weight", "height", "camp_id",
     "current_status", "health_status",
     "camp_entry_date", "photo_url", "is_active", "id_card"
 )
-SELECT 'Diego', 'Vargas', 44,
+SELECT 'Diego', 'Vargas', '1982-05-30',
     'Cirujano de urgencias con experiencia en medicina de campo y tratamiento de trauma severo.',
     83.00, 1.85,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Fayenza' LIMIT 1),
@@ -147,11 +147,11 @@ VALUES (
 -- 5. Personas para roles faltantes
 -- -------------------------------------------------------------
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info", "weight", "height",
+    "name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date",
     "photo_url", "is_active", "id_card"
 )
-SELECT 'Elena', 'Fuentes', 36,
+SELECT 'Elena', 'Fuentes', '1990-09-14',
     'Exlogistica de supermercado, responsable del control de inventario y distribucion de recursos del campamento.',
     61.00, 1.67,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Fayenza' LIMIT 1),
@@ -160,11 +160,11 @@ SELECT 'Elena', 'Fuentes', 36,
 WHERE NOT EXISTS (SELECT 1 FROM "person" WHERE "id_card" = 'ID-RECURSOS-FAYENZA-001');
 
 INSERT INTO "person" (
-    "name", "last_name", "age", "background_info", "weight", "height",
+    "name", "last_name", "birth_date", "background_info", "weight", "height",
     "camp_id", "current_status", "health_status", "camp_entry_date",
     "photo_url", "is_active", "id_card"
 )
-SELECT 'Juan', 'Herrera', 31,
+SELECT 'Juan', 'Herrera', '1995-02-27',
     'Exmilitar con experiencia en comunicaciones y coordinacion de operaciones entre bases.',
     74.00, 1.76,
     (SELECT "id" FROM "camp" WHERE "name" = 'Campamento Fayenza' LIMIT 1),
