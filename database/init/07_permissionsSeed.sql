@@ -280,3 +280,10 @@ WHERE NOT EXISTS (
     SELECT 1 FROM role_permission rp WHERE rp.role_id = (SELECT id FROM role WHERE name = 'ENCARGADO VIAJES Y COMUNICACIÓN')
     AND rp.permission_id = (SELECT id FROM permission WHERE name = 'VER_LOGROS')
 );
+
+INSERT INTO role_permission (role_id, permission_id)
+SELECT (SELECT id FROM role WHERE name = 'ENCARGADO VIAJES Y COMUNICACIÓN'), (SELECT id FROM permission WHERE name = 'VER_HISTORIAL_SOLICITUDES')
+WHERE NOT EXISTS (
+    SELECT 1 FROM role_permission rp WHERE rp.role_id = (SELECT id FROM role WHERE name = 'ENCARGADO VIAJES Y COMUNICACIÓN')
+    AND rp.permission_id = (SELECT id FROM permission WHERE name = 'VER_HISTORIAL_SOLICITUDES')
+);
