@@ -30,6 +30,34 @@ from src.transfers.service.transfer_service import TransferService
 router = APIRouter(prefix="/transfers", tags=["Transfers"])
 
 
+def _enforce_transfer_flow_permissions(
+    db: Session,
+    current_user: UserProfileResponse,
+) -> None:
+    if current_user.role_name == ROLE_RESOURCES:
+        enforce_role_permissions(
+            db,
+            current_user,
+            {ROLE_RESOURCES},
+            {PERM_APPROVE_REJECT},
+        )
+        return
+
+    if current_user.role_name == ROLE_TRAVEL:
+        enforce_role_permissions(
+            db,
+            current_user,
+            {ROLE_TRAVEL},
+            {PERM_REQUEST_RESOURCES},
+        )
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Rol no autorizado",
+    )
+
+
 @router.get("/camps", response_model=list[CampOptionResponse])
 def list_camps(
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
@@ -179,3 +207,25 @@ def reject_request(
     )
     TransferService.reject_request(db, current_user.camp_id, request_id)
     return TransferActionResponse(message="Solicitud rechazada")
+
+
+@router.post("/{request_id}/confirm-departure", response_model=TransferActionResponse)
+def confirm_departure(
+    request_id: int,
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> TransferActionResponse:
+    _enforce_transfer_flow_permissions(db, current_user)
+    TransferService.confirm_departure(db, current_user.camp_id, request_id)
+    return TransferActionResponse(message="Salida confirmada")
+
+
+@router.post("/{request_id}/confirm-arrival", response_model=TransferActionResponse)
+def confirm_arrival(
+    request_id: int,
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> TransferActionResponse:
+    _enforce_transfer_flow_permissions(db, current_user)
+    TransferService.confirm_arrival(db, current_user.camp_id, request_id)
+    return TransferActionResponse(message="Llegada confirmada")

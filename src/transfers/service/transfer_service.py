@@ -1,6 +1,7 @@
 from datetime import date
 
 from fastapi import HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
@@ -11,6 +12,7 @@ from src.inventory.models.inventory import Inventory
 from src.inventory.models.inventory_movement import InventoryMovement
 from src.inventory.models.inventory_resource import InventoryResource
 from src.inventory.models.resource import Resource
+from src.persons.enums import CurrentStatusEnum
 from src.persons.models.person import Person
 from src.persons.models.profession import Profession
 from src.persons.models.profession_assignment import ProfessionAssignment
@@ -58,7 +60,7 @@ class TransferService:
         if not camp:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Campamento destino no encontrado.",
+                detail="Campamento proveedor no encontrado.",
             )
 
         inventory = db.query(Inventory).filter(Inventory.camp_id == camp_id).first()
@@ -90,7 +92,7 @@ class TransferService:
         requests = (
             db.query(TransferRequest)
             .filter(
-                TransferRequest.to_camp_id == current_camp_id,
+                TransferRequest.from_camp_id == current_camp_id,
                 TransferRequest.request_status == RequestStatusEnum.PENDIENTE,
             )
             .order_by(TransferRequest.created_at.desc())
@@ -104,7 +106,12 @@ class TransferService:
     ) -> list[TransferRequestResponse]:
         requests = (
             db.query(TransferRequest)
-            .filter(TransferRequest.from_camp_id == current_camp_id)
+            .filter(
+                or_(
+                    TransferRequest.from_camp_id == current_camp_id,
+                    TransferRequest.to_camp_id == current_camp_id,
+                )
+            )
             .order_by(TransferRequest.created_at.desc())
             .all()
         )
@@ -115,7 +122,10 @@ class TransferService:
         db: Session, current_camp_id: int, page: int, size: int
     ) -> tuple[int, list[TransferRequestResponse]]:
         base_query = db.query(TransferRequest).filter(
-            TransferRequest.from_camp_id == current_camp_id
+            or_(
+                TransferRequest.from_camp_id == current_camp_id,
+                TransferRequest.to_camp_id == current_camp_id,
+            )
         )
         total = base_query.count()
         offset = (page - 1) * size
@@ -174,17 +184,18 @@ class TransferService:
         current_user: UserProfileResponse,
         payload: TransferRequestCreate,
     ) -> TransferRequestResponse:
-        if payload.to_camp_id == current_user.camp_id:
+        provider_camp_id = payload.to_camp_id
+        if provider_camp_id == current_user.camp_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El campamento destino no puede ser el mismo.",
+                detail="El campamento proveedor no puede ser el mismo.",
             )
 
-        destination = db.query(Camp).filter(Camp.id == payload.to_camp_id).first()
-        if not destination:
+        provider = db.query(Camp).filter(Camp.id == provider_camp_id).first()
+        if not provider:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Campamento destino no encontrado.",
+                detail="Campamento proveedor no encontrado.",
             )
 
         if payload.is_resource_transfer and not payload.resources:
@@ -194,8 +205,8 @@ class TransferService:
             )
 
         transfer_request = TransferRequest(
-            from_camp_id=current_user.camp_id,
-            to_camp_id=payload.to_camp_id,
+            from_camp_id=provider_camp_id,
+            to_camp_id=current_user.camp_id,
             request_status=RequestStatusEnum.PENDIENTE,
             transfer_status=None,
             arrival_date=None,
@@ -230,7 +241,7 @@ class TransferService:
             db.query(TransferRequest)
             .filter(
                 TransferRequest.id == request_id,
-                TransferRequest.to_camp_id == current_camp_id,
+                TransferRequest.from_camp_id == current_camp_id,
             )
             .first()
         )
@@ -247,128 +258,163 @@ class TransferService:
             )
 
         requested_participant_ids = set(participant_ids or [])
-        if not requested_participant_ids:
+        if not request.is_resource_transfer and not requested_participant_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Debes seleccionar al menos un explorador.",
             )
 
-        camp_person_ids = {
-            person_id
-            for (person_id,) in (
-                db.query(Person.id)
+        valid_ids: set[int] = set()
+        if requested_participant_ids:
+            camp_person_ids = {
+                person_id
+                for (person_id,) in (
+                    db.query(Person.id)
+                    .filter(
+                        Person.id.in_(requested_participant_ids),
+                        Person.camp_id == current_camp_id,
+                    )
+                    .all()
+                )
+            }
+            if camp_person_ids != requested_participant_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Persona no encontrada.",
+                )
+
+            explorer_profession = (
+                db.query(Profession)
+                .filter(Profession.name == "EXPLORADOR")
+                .first()
+            )
+            if not explorer_profession:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No existe la profesion EXPLORADOR.",
+                )
+
+            assignments = (
+                db.query(ProfessionAssignment)
+                .join(Person, Person.id == ProfessionAssignment.person_id)
                 .filter(
-                    Person.id.in_(requested_participant_ids),
+                    ProfessionAssignment.profession_id == explorer_profession.id,
+                    ProfessionAssignment.is_active == True,
+                    ProfessionAssignment.is_main_profession == True,
                     Person.camp_id == current_camp_id,
+                    Person.id.in_(requested_participant_ids),
                 )
                 .all()
             )
-        }
-        if camp_person_ids != requested_participant_ids:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Persona no encontrada.",
-            )
 
-        explorer_profession = (
-            db.query(Profession)
-            .filter(Profession.name == "EXPLORADOR")
-            .first()
-        )
-        if not explorer_profession:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No existe la profesion EXPLORADOR.",
-            )
-
-        assignments = (
-            db.query(ProfessionAssignment)
-            .join(Person, Person.id == ProfessionAssignment.person_id)
-            .filter(
-                ProfessionAssignment.profession_id == explorer_profession.id,
-                ProfessionAssignment.is_active == True,
-                ProfessionAssignment.is_main_profession == True,
-                Person.camp_id == current_camp_id,
-                Person.id.in_(requested_participant_ids),
-            )
-            .all()
-        )
-
-        valid_ids = {assignment.person_id for assignment in assignments}
-        if valid_ids != requested_participant_ids:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Exploradores inválidos.",
-            )
-
-        transfer_resources = (
-            db.query(TransferResource)
-            .filter(TransferResource.request_id == request.id)
-            .all()
-        )
-        inventory_resources_by_resource_id: dict[int, InventoryResource] = {}
-
-        if request.is_resource_transfer:
-            if not transfer_resources:
+            valid_ids = {assignment.person_id for assignment in assignments}
+            if valid_ids != requested_participant_ids:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="La solicitud no tiene recursos asociados.",
+                    detail="Exploradores invalidos.",
                 )
 
-            inventory_resources_by_resource_id = (
-                TransferService._get_transfer_inventory_resources(
-                    db,
-                    current_camp_id,
-                    transfer_resources,
-                )
-            )
-
-            for transfer_resource in transfer_resources:
-                inventory_resource = inventory_resources_by_resource_id.get(
-                    transfer_resource.resource_id
-                )
-                if inventory_resource is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail="Recurso no encontrado en el inventario del campamento.",
-                    )
-                if inventory_resource.quantity < transfer_resource.transfer_amount:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Stock insuficiente para aprobar la solicitud.",
-                    )
-
-        for person_id in valid_ids:
-            db.add(
-                TransferParticipant(
-                    person_id=person_id,
-                    request_id=request.id,
-                    is_transfer_active=True,
-                )
-            )
-
-        if request.is_resource_transfer:
-            for transfer_resource in transfer_resources:
-                inventory_resource = inventory_resources_by_resource_id[
-                    transfer_resource.resource_id
-                ]
-                inventory_resource.quantity -= transfer_resource.transfer_amount
+        try:
+            for person_id in valid_ids:
                 db.add(
-                    InventoryMovement(
-                        quantity=transfer_resource.transfer_amount,
-                        inventory_resource_id=inventory_resource.id,
-                        movement_type=MovementTypeEnum.TRANSFERENCIA,
-                        transfer_request_id=request.id,
+                    TransferParticipant(
+                        person_id=person_id,
+                        request_id=request.id,
+                        is_transfer_active=True,
                     )
                 )
 
-        request.request_status = RequestStatusEnum.APROBADO
-        request.transfer_status = TransferStatusEnum.DE_CAMINO
-        db.commit()
+            request.request_status = RequestStatusEnum.APROBADO
+            request.transfer_status = TransferStatusEnum.EN_PREPARACION
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+    @staticmethod
+    def confirm_departure(db: Session, current_camp_id: int, request_id: int) -> None:
+        request = TransferService._get_transfer_for_departure(
+            db, current_camp_id, request_id
+        )
+        try:
+            if request.request_status != RequestStatusEnum.APROBADO:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="La solicitud debe estar aprobada.",
+                )
+            if request.transfer_status != TransferStatusEnum.EN_PREPARACION:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El traslado no esta en preparacion.",
+                )
+
+            transfer_resources = TransferService._get_transfer_resources(db, request.id)
+            if request.is_resource_transfer:
+                TransferService._subtract_origin_resources(
+                    db, current_camp_id, request.id, transfer_resources
+                )
+
+            participants = TransferService._get_transfer_participants(db, request.id)
+            for participant in participants:
+                participant.is_transfer_active = True
+                person = db.query(Person).filter(Person.id == participant.person_id).first()
+                if person:
+                    person.current_status = CurrentStatusEnum.TRASLADANDO_RECURSOS
+
+            request.transfer_status = TransferStatusEnum.DE_CAMINO
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
         if request.is_resource_transfer:
             inventory_events.publish(
                 camp_id=current_camp_id,
-                source="transfer_request.approved",
+                source="transfer_request.departed",
+                metadata={"request_id": request.id},
+            )
+
+    @staticmethod
+    def confirm_arrival(db: Session, current_camp_id: int, request_id: int) -> None:
+        request = TransferService._get_transfer_for_arrival(
+            db, current_camp_id, request_id
+        )
+        try:
+            if request.transfer_status != TransferStatusEnum.DE_CAMINO:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El traslado no esta de camino.",
+                )
+
+            transfer_resources = TransferService._get_transfer_resources(db, request.id)
+            if request.is_resource_transfer:
+                TransferService._add_destination_resources(
+                    db, current_camp_id, request.id, transfer_resources
+                )
+
+            participants = TransferService._get_transfer_participants(db, request.id)
+            for participant in participants:
+                participant.is_transfer_active = False
+                person = db.query(Person).filter(Person.id == participant.person_id).first()
+                if not person:
+                    continue
+                if request.is_resource_transfer:
+                    person.current_status = CurrentStatusEnum.LIBRE
+                else:
+                    person.camp_id = current_camp_id
+                    person.current_status = CurrentStatusEnum.LIBRE
+
+            request.transfer_status = TransferStatusEnum.LLEGO
+            request.arrival_date = date.today()
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+        if request.is_resource_transfer:
+            inventory_events.publish(
+                camp_id=current_camp_id,
+                source="transfer_request.arrived",
                 metadata={"request_id": request.id},
             )
 
@@ -378,7 +424,7 @@ class TransferService:
             db.query(TransferRequest)
             .filter(
                 TransferRequest.id == request_id,
-                TransferRequest.to_camp_id == current_camp_id,
+                TransferRequest.from_camp_id == current_camp_id,
             )
             .first()
         )
@@ -415,6 +461,163 @@ class TransferService:
             .all()
         )
         return {inventory_resource.resource_id: inventory_resource for inventory_resource in rows}
+
+    @staticmethod
+    def _get_transfer_for_departure(
+        db: Session, current_camp_id: int, request_id: int
+    ) -> TransferRequest:
+        request = (
+            db.query(TransferRequest)
+            .filter(
+                TransferRequest.id == request_id,
+                TransferRequest.from_camp_id == current_camp_id,
+            )
+            .with_for_update()
+            .first()
+        )
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Solicitud no encontrada.",
+            )
+        return request
+
+    @staticmethod
+    def _get_transfer_for_arrival(
+        db: Session, current_camp_id: int, request_id: int
+    ) -> TransferRequest:
+        request = (
+            db.query(TransferRequest)
+            .filter(
+                TransferRequest.id == request_id,
+                TransferRequest.to_camp_id == current_camp_id,
+            )
+            .with_for_update()
+            .first()
+        )
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Solicitud no encontrada.",
+            )
+        return request
+
+    @staticmethod
+    def _get_transfer_resources(db: Session, request_id: int) -> list[TransferResource]:
+        return (
+            db.query(TransferResource)
+            .filter(TransferResource.request_id == request_id)
+            .all()
+        )
+
+    @staticmethod
+    def _get_transfer_participants(
+        db: Session, request_id: int
+    ) -> list[TransferParticipant]:
+        return (
+            db.query(TransferParticipant)
+            .filter(TransferParticipant.request_id == request_id)
+            .all()
+        )
+
+    @staticmethod
+    def _subtract_origin_resources(
+        db: Session,
+        origin_camp_id: int,
+        request_id: int,
+        transfer_resources: list[TransferResource],
+    ) -> None:
+        if not transfer_resources:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La solicitud no tiene recursos asociados.",
+            )
+
+        inventory_resources_by_resource_id = TransferService._get_transfer_inventory_resources(
+            db, origin_camp_id, transfer_resources
+        )
+        for transfer_resource in transfer_resources:
+            inventory_resource = inventory_resources_by_resource_id.get(
+                transfer_resource.resource_id
+            )
+            if inventory_resource is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Recurso no encontrado en el inventario del campamento.",
+                )
+            if inventory_resource.quantity < transfer_resource.transfer_amount:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Stock insuficiente para confirmar salida.",
+                )
+
+        for transfer_resource in transfer_resources:
+            inventory_resource = inventory_resources_by_resource_id[
+                transfer_resource.resource_id
+            ]
+            inventory_resource.quantity -= transfer_resource.transfer_amount
+            db.add(
+                InventoryMovement(
+                    quantity=transfer_resource.transfer_amount,
+                    inventory_resource_id=inventory_resource.id,
+                    movement_type=MovementTypeEnum.TRANSFERENCIA,
+                    transfer_request_id=request_id,
+                )
+            )
+
+    @staticmethod
+    def _add_destination_resources(
+        db: Session,
+        destination_camp_id: int,
+        request_id: int,
+        transfer_resources: list[TransferResource],
+    ) -> None:
+        if not transfer_resources:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La solicitud no tiene recursos asociados.",
+            )
+
+        inventory = (
+            db.query(Inventory)
+            .filter(Inventory.camp_id == destination_camp_id)
+            .first()
+        )
+        if not inventory:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Inventario destino no encontrado.",
+            )
+
+        inventory_resources_by_resource_id = TransferService._get_transfer_inventory_resources(
+            db, destination_camp_id, transfer_resources
+        )
+        for transfer_resource in transfer_resources:
+            inventory_resource = inventory_resources_by_resource_id.get(
+                transfer_resource.resource_id
+            )
+            if inventory_resource is None:
+                inventory_resource = InventoryResource(
+                    quantity=0,
+                    minimum_stock_level=0,
+                    inventory_id=inventory.id,
+                    resource_id=transfer_resource.resource_id,
+                )
+                db.add(inventory_resource)
+                db.flush()
+                inventory_resources_by_resource_id[
+                    transfer_resource.resource_id
+                ] = inventory_resource
+
+            inventory_resource.quantity += transfer_resource.transfer_amount
+            db.add(
+                InventoryMovement(
+                    quantity=transfer_resource.transfer_amount,
+                    inventory_resource_id=inventory_resource.id,
+                    movement_type=MovementTypeEnum.TRANSFERENCIA,
+                    transfer_request_id=request_id,
+                )
+            )
 
     @staticmethod
     def _build_transfer_responses(
