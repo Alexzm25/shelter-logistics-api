@@ -40,6 +40,12 @@ def stream_inventory_events(
 ) -> StreamingResponse:
     selected_camp_id = camp_id or current_user.camp_id
 
+    if selected_camp_id != current_user.camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes consultar otro campamento",
+        )
+
     if current_user.role_name in {ROLE_ADMIN, ROLE_RESOURCES}:
         enforce_role_permissions(
             db,
@@ -93,6 +99,12 @@ def get_inventory_by_camp(
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> list[InventoryItemResponse]:
+    if camp_id != current_user.camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes consultar otro campamento",
+        )
+
     if current_user.role_name in {ROLE_ADMIN, ROLE_RESOURCES}:
         enforce_role_permissions(
             db,

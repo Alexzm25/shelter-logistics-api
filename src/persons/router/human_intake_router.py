@@ -97,6 +97,11 @@ async def evaluate_candidate(
     db: Session = Depends(get_db),
 ) -> EvaluationResponse:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
+    if payload.candidate.camp_id != current_user.camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes evaluar candidatos para otro campamento",
+        )
     return await HumanIntakeService.evaluate_candidate(db, payload.candidate)
 
 
@@ -120,6 +125,11 @@ async def register_candidate(
     db: Session = Depends(get_db),
 ) -> RegisterCandidateResponse:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
+    if camp_id != current_user.camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes registrar personas en otro campamento",
+        )
 
     resolved_photo_url = (photo_url or "").strip() or None
     if photo_file is not None:
@@ -188,7 +198,7 @@ def update_person(
         id_card=(id_card or "").strip() or None,
         photo_url=resolved_photo_url,
     )
-    return HumanIntakeService.update_person(db, person_id, payload)
+    return HumanIntakeService.update_person(db, person_id, current_user.camp_id, payload)
 
 
 @router.patch("/people/{person_id}/status", response_model=UpdatePersonStatusResponse)
@@ -214,7 +224,7 @@ def update_person_status(
             detail="Rol no autorizado",
         )
 
-    return HumanIntakeService.update_person_status(db, person_id, payload)
+    return HumanIntakeService.update_person_status(db, person_id, current_user.camp_id, payload)
 
 
 @router.post("/people/{person_id}/temporary-reassignment", response_model=TemporaryReassignmentResponse)
@@ -225,7 +235,9 @@ def create_temporary_reassignment(
     db: Session = Depends(get_db),
 ) -> TemporaryReassignmentResponse:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
-    return HumanIntakeService.create_temporary_reassignment(db, person_id, payload)
+    return HumanIntakeService.create_temporary_reassignment(
+        db, person_id, current_user.camp_id, payload
+    )
 
 
 @router.delete("/people/{person_id}/temporary-reassignment", response_model=TemporaryReassignmentResponse)
@@ -235,4 +247,6 @@ def close_temporary_reassignment(
     db: Session = Depends(get_db),
 ) -> TemporaryReassignmentResponse:
     enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_HUMAN_FULL})
-    return HumanIntakeService.close_temporary_reassignment(db, person_id)
+    return HumanIntakeService.close_temporary_reassignment(
+        db, person_id, current_user.camp_id
+    )

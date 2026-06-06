@@ -55,18 +55,13 @@ def list_resources(
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> list[ResourceAvailabilityResponse]:
-    if current_user.role_name == ROLE_ADMIN:
-        enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_VIEW_TRANSFERS})
-    elif current_user.role_name == ROLE_RESOURCES:
-        enforce_role_permissions(db, current_user, {ROLE_RESOURCES}, {PERM_VIEW_TRANSFERS})
-    elif current_user.role_name == ROLE_TRAVEL:
-        enforce_role_permissions(db, current_user, {ROLE_TRAVEL}, {PERM_REQUEST_RESOURCES})
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Rol no autorizado",
-        )
-    return TransferService.list_resources(db, camp_id)
+    enforce_role_permissions(
+        db,
+        current_user,
+        {ROLE_RESOURCES, ROLE_TRAVEL},
+        {PERM_REQUEST_RESOURCES},
+    )
+    return TransferService.list_resources(db, current_user.camp_id, camp_id)
 
 
 @router.get("/pending", response_model=list[TransferRequestResponse])
@@ -98,6 +93,8 @@ def list_history_requests(
         enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_VIEW_HISTORY})
     elif current_user.role_name == ROLE_RESOURCES:
         enforce_role_permissions(db, current_user, {ROLE_RESOURCES}, {PERM_VIEW_HISTORY})
+    elif current_user.role_name == ROLE_TRAVEL:
+        enforce_role_permissions(db, current_user, {ROLE_TRAVEL}, {PERM_VIEW_HISTORY})
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -36,7 +36,15 @@ class CampDashboardService:
     ACHIEVEMENT_LIMIT = 12
 
     @staticmethod
-    def get_dashboard(db: Session, camp_id: int, page: int = 1, person_page: int = 1, size: int = 10, internal_page: int = 1) -> CampDashboardResponse:
+    def get_dashboard(
+        db: Session,
+        camp_id: int,
+        page: int = 1,
+        person_page: int = 1,
+        size: int = 10,
+        internal_page: int = 1,
+        sent_transfers_only: bool = False,
+    ) -> CampDashboardResponse:
         camp = db.query(Camp).filter(Camp.id == camp_id).first()
         if not camp:
             raise HTTPException(
@@ -44,10 +52,19 @@ class CampDashboardService:
                 detail=f"Camp {camp_id} not found",
             )
 
-        stats = CampDashboardService._build_stats(db, camp)
+        stats = CampDashboardService._build_stats(
+            db,
+            camp,
+            sent_transfers_only=sent_transfers_only,
+        )
         inventory = CampDashboardService._build_inventory(db, camp.id)
         resource_total, person_total, inter_camp_transfers = CampDashboardService._build_inter_camp_transfers(
-            db, camp.id, page, person_page, size
+            db,
+            camp.id,
+            page,
+            person_page,
+            size,
+            sent_transfers_only=sent_transfers_only,
         )
         internal_total, internal_transfers = CampDashboardService._build_internal_transfers(
             db, camp.id, internal_page, size
@@ -67,7 +84,11 @@ class CampDashboardService:
         )
 
     @staticmethod
-    def _build_stats(db: Session, camp: Camp) -> CampStatsResponse:
+    def _build_stats(
+        db: Session,
+        camp: Camp,
+        sent_transfers_only: bool = False,
+    ) -> CampStatsResponse:
         total_population = CampDashboardService._count_people(db, camp.id)
         healthy_count = CampDashboardService._count_people(
             db, camp.id, health_status=HealthStatusEnum.SANO
@@ -101,7 +122,11 @@ class CampDashboardService:
         )
         active_explorations = CampDashboardService._count_active_explorations(db, camp.id)
         total_achievements = CampDashboardService._count_achievements(db, camp.id)
-        aid_transfers = CampDashboardService._count_aid_transfers(db, camp.id)
+        aid_transfers = CampDashboardService._count_aid_transfers(
+            db,
+            camp.id,
+            sent_transfers_only=sent_transfers_only,
+        )
 
         return CampStatsResponse(
             id=camp.id,
@@ -193,13 +218,22 @@ class CampDashboardService:
         )
 
     @staticmethod
-    def _count_aid_transfers(db: Session, camp_id: int) -> int:
-        return int(
-            db.query(func.count(TransferRequest.id))
-            .filter(
+    def _count_aid_transfers(
+        db: Session,
+        camp_id: int,
+        sent_transfers_only: bool = False,
+    ) -> int:
+        camp_filter = (
+            TransferRequest.from_camp_id == camp_id
+            if sent_transfers_only
+            else (
                 (TransferRequest.from_camp_id == camp_id)
                 | (TransferRequest.to_camp_id == camp_id)
             )
+        )
+        return int(
+            db.query(func.count(TransferRequest.id))
+            .filter(camp_filter)
             .filter(TransferRequest.is_resource_transfer.is_(False))
             .filter(TransferRequest.request_status == RequestStatusEnum.APROBADO)
             .scalar()
@@ -239,31 +273,38 @@ class CampDashboardService:
 
     @staticmethod
     def _build_inter_camp_transfers(
-        db: Session, camp_id: int, resource_page: int = 1, person_page: int = 1, size: int = 10
+        db: Session,
+        camp_id: int,
+        resource_page: int = 1,
+        person_page: int = 1,
+        size: int = 10,
+        sent_transfers_only: bool = False,
     ) -> tuple[int, int, list[InterCampTransferResponse]]:
         from src.transfers.models.transfer_participants import TransferParticipant
 
         origin_camp = aliased(Camp)
         dest_camp = aliased(Camp)
+        camp_filter = (
+            TransferRequest.from_camp_id == camp_id
+            if sent_transfers_only
+            else (
+                (TransferRequest.from_camp_id == camp_id)
+                | (TransferRequest.to_camp_id == camp_id)
+            )
+        )
 
         # Count rows as one-per-resource-item (not per unique transfer request)
         resource_total = int(
             db.query(func.count(TransferResource.id))
             .join(TransferRequest, TransferRequest.id == TransferResource.request_id)
-            .filter(
-                (TransferRequest.from_camp_id == camp_id)
-                | (TransferRequest.to_camp_id == camp_id)
-            )
+            .filter(camp_filter)
             .filter(TransferRequest.is_resource_transfer.is_(True))
             .scalar() or 0
         )
 
         person_total = int(
             db.query(func.count(TransferRequest.id))
-            .filter(
-                (TransferRequest.from_camp_id == camp_id)
-                | (TransferRequest.to_camp_id == camp_id)
-            )
+            .filter(camp_filter)
             .filter(TransferRequest.is_resource_transfer.is_(False))
             .scalar() or 0
         )
@@ -284,10 +325,7 @@ class CampDashboardService:
             .join(Resource, Resource.id == TransferResource.resource_id)
             .join(origin_camp, origin_camp.id == TransferRequest.from_camp_id)
             .join(dest_camp, dest_camp.id == TransferRequest.to_camp_id)
-            .filter(
-                (TransferRequest.from_camp_id == camp_id)
-                | (TransferRequest.to_camp_id == camp_id)
-            )
+            .filter(camp_filter)
             .filter(TransferRequest.is_resource_transfer.is_(True))
             .order_by(TransferRequest.created_at.desc(), TransferResource.id.asc())
             .offset(resource_offset)
@@ -316,10 +354,7 @@ class CampDashboardService:
 
         person_rows = (
             db.query(TransferRequest)
-            .filter(
-                (TransferRequest.from_camp_id == camp_id)
-                | (TransferRequest.to_camp_id == camp_id)
-            )
+            .filter(camp_filter)
             .filter(TransferRequest.is_resource_transfer.is_(False))
             .order_by(TransferRequest.created_at.desc())
             .offset(person_offset)

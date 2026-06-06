@@ -43,7 +43,24 @@ class TransferService:
         ]
 
     @staticmethod
-    def list_resources(db: Session, camp_id: int) -> list[ResourceAvailabilityResponse]:
+    def list_resources(
+        db: Session,
+        current_camp_id: int,
+        camp_id: int,
+    ) -> list[ResourceAvailabilityResponse]:
+        if camp_id == current_camp_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El campamento consultado debe ser externo.",
+            )
+
+        camp = db.query(Camp).filter(Camp.id == camp_id).first()
+        if not camp:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Campamento destino no encontrado.",
+            )
+
         inventory = db.query(Inventory).filter(Inventory.camp_id == camp_id).first()
         if not inventory:
             return []
@@ -209,17 +226,18 @@ class TransferService:
         request_id: int,
         participant_ids: list[int] | None,
     ) -> None:
-        request = db.query(TransferRequest).filter(TransferRequest.id == request_id).first()
+        request = (
+            db.query(TransferRequest)
+            .filter(
+                TransferRequest.id == request_id,
+                TransferRequest.to_camp_id == current_camp_id,
+            )
+            .first()
+        )
         if not request:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Solicitud no encontrada.",
-            )
-
-        if request.to_camp_id != current_camp_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No puedes aprobar esta solicitud.",
             )
 
         if request.request_status != RequestStatusEnum.PENDIENTE:
@@ -228,10 +246,28 @@ class TransferService:
                 detail="La solicitud ya fue procesada.",
             )
 
-        if not participant_ids:
+        requested_participant_ids = set(participant_ids or [])
+        if not requested_participant_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Debes seleccionar al menos un explorador.",
+            )
+
+        camp_person_ids = {
+            person_id
+            for (person_id,) in (
+                db.query(Person.id)
+                .filter(
+                    Person.id.in_(requested_participant_ids),
+                    Person.camp_id == current_camp_id,
+                )
+                .all()
+            )
+        }
+        if camp_person_ids != requested_participant_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Persona no encontrada.",
             )
 
         explorer_profession = (
@@ -253,13 +289,13 @@ class TransferService:
                 ProfessionAssignment.is_active == True,
                 ProfessionAssignment.is_main_profession == True,
                 Person.camp_id == current_camp_id,
-                Person.id.in_(participant_ids),
+                Person.id.in_(requested_participant_ids),
             )
             .all()
         )
 
         valid_ids = {assignment.person_id for assignment in assignments}
-        if len(valid_ids) != len(set(participant_ids)):
+        if valid_ids != requested_participant_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Exploradores inválidos.",
@@ -338,17 +374,18 @@ class TransferService:
 
     @staticmethod
     def reject_request(db: Session, current_camp_id: int, request_id: int) -> None:
-        request = db.query(TransferRequest).filter(TransferRequest.id == request_id).first()
+        request = (
+            db.query(TransferRequest)
+            .filter(
+                TransferRequest.id == request_id,
+                TransferRequest.to_camp_id == current_camp_id,
+            )
+            .first()
+        )
         if not request:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Solicitud no encontrada.",
-            )
-
-        if request.to_camp_id != current_camp_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No puedes rechazar esta solicitud.",
             )
 
         if request.request_status != RequestStatusEnum.PENDIENTE:

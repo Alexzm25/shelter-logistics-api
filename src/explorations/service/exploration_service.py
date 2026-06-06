@@ -121,7 +121,19 @@ class ExplorationService:
     def get_history_by_person(
         db: Session,
         person_id: int,
+        camp_id: int,
     ) -> list[ExplorationHistoryResponse]:
+        person = (
+            db.query(Person)
+            .filter(Person.id == person_id, Person.camp_id == camp_id)
+            .first()
+        )
+        if not person:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Persona no encontrada",
+            )
+
         rows = (
             db.query(Exploration)
             .join(
@@ -187,6 +199,24 @@ class ExplorationService:
         payload: CreateExplorationRequest,
         camp_id: int,
     ) -> CreateExplorationResponse:
+        requested_member_ids = set(payload.member_ids)
+        camp_member_ids = {
+            person_id
+            for (person_id,) in (
+                db.query(Person.id)
+                .filter(
+                    Person.id.in_(requested_member_ids),
+                    Person.camp_id == camp_id,
+                )
+                .all()
+            )
+        }
+        if camp_member_ids != requested_member_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Persona no encontrada",
+            )
+
         explorers = (
             db.query(Person)
             .join(
@@ -197,7 +227,7 @@ class ExplorationService:
                 Profession,
                 Profession.id == ProfessionAssignment.profession_id,
             )
-            .filter(Person.id.in_(payload.member_ids))
+            .filter(Person.id.in_(requested_member_ids))
             .filter(Person.camp_id == camp_id)
             .filter(Person.is_active.is_(True))
             .filter(Person.health_status == HealthStatusEnum.SANO)
@@ -207,7 +237,7 @@ class ExplorationService:
             .all()
         )
 
-        if len(explorers) != len(set(payload.member_ids)):
+        if len(explorers) != len(requested_member_ids):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Uno o más exploradores no están disponibles",
@@ -248,10 +278,12 @@ class ExplorationService:
     def register_loot(
         db: Session,
         payload: RegisterExplorationLootRequest,
+        camp_id: int,
     ) -> RegisterExplorationLootResponse:
         exploration = ExplorationService._get_exploration_in_process(
             db,
             payload.exploration_id,
+            camp_id,
         )
 
         ExplorationService._get_resource(db, payload.resource_id)
@@ -276,10 +308,12 @@ class ExplorationService:
     def return_exploration(
         db: Session,
         payload: ReturnExplorationRequest,
+        camp_id: int,
     ) -> RegisterExplorationLootResponse:
         exploration = ExplorationService._get_exploration_in_process(
             db,
             payload.exploration_id,
+            camp_id,
         )
 
         loot_records: list[ExplorationLoot] = []
@@ -354,10 +388,12 @@ class ExplorationService:
     def cancel_exploration(
         db: Session,
         exploration_id: int,
+        camp_id: int,
     ) -> CancelExplorationResponse:
         exploration = ExplorationService._get_exploration_in_process(
             db,
             exploration_id,
+            camp_id,
         )
 
         exploration.exploration_status = ExplorationStatusEnum.CANCELADA
@@ -392,10 +428,11 @@ class ExplorationService:
     def _get_exploration_in_process(
         db: Session,
         exploration_id: int,
+        camp_id: int,
     ) -> Exploration:
         exploration = (
             db.query(Exploration)
-            .filter(Exploration.id == exploration_id)
+            .filter(Exploration.id == exploration_id, Exploration.camp_id == camp_id)
             .first()
         )
 

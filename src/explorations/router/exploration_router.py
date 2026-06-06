@@ -104,13 +104,15 @@ def get_exploration_history(
 ) -> list[ExplorationHistoryResponse]:
     validate_exploration_access(db, current_user)
 
+    history = ExplorationService.get_history_by_person(db, person_id, current_user.camp_id)
+
     if current_user.role_name == ROLE_WORKER and current_user.person_id != person_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No puedes ver expediciones de otra persona",
         )
 
-    return ExplorationService.get_history_by_person(db, person_id)
+    return history
 
 @router.post(
     "",
@@ -176,7 +178,7 @@ def register_exploration_loot(
 ) -> RegisterExplorationLootResponse:
     validate_exploration_access(db, current_user)
 
-    return ExplorationService.register_loot(db, payload)
+    return ExplorationService.register_loot(db, payload, current_user.camp_id)
 
 
 @router.post(
@@ -191,7 +193,7 @@ def return_exploration(
 ) -> RegisterExplorationLootResponse:
     validate_exploration_access(db, current_user)
 
-    return ExplorationService.return_exploration(db, payload)
+    return ExplorationService.return_exploration(db, payload, current_user.camp_id)
 
 
 @router.post(
@@ -206,4 +208,4 @@ def cancel_exploration(
 ) -> CancelExplorationResponse:
     validate_exploration_access(db, current_user)
 
-    return ExplorationService.cancel_exploration(db, exploration_id)
+    return ExplorationService.cancel_exploration(db, exploration_id, current_user.camp_id)

@@ -210,7 +210,7 @@ class HumanIntakeService:
 
         people = (
             db.query(Person)
-            .filter(Person.id_card == normalized_id_card)
+            .filter(Person.id_card == normalized_id_card, Person.camp_id == camp_id)
             .order_by(Person.id.desc())
             .all()
         )
@@ -231,9 +231,7 @@ class HumanIntakeService:
                 detail="Esta persona ya se encuentra activa en el campamento.",
             )
 
-        same_camp_person = next((person for person in people if person.camp_id == camp_id), None)
-        candidate_person = same_camp_person or people[0]
-        return HumanIntakeService._to_person_summary(db, candidate_person)
+        return HumanIntakeService._to_person_summary(db, people[0])
 
     @staticmethod
     def get_dashboard(db: Session, camp_id: int) -> DashboardResponse:
@@ -319,8 +317,17 @@ class HumanIntakeService:
         return [HumanIntakeService._to_person_summary(db, person) for person in people]
 
     @staticmethod
-    def update_person(db: Session, person_id: int, payload: UpdatePersonRequest) -> UpdatePersonResponse:
-        person = db.query(Person).filter(Person.id == person_id).first()
+    def update_person(
+        db: Session,
+        person_id: int,
+        camp_id: int,
+        payload: UpdatePersonRequest,
+    ) -> UpdatePersonResponse:
+        person = (
+            db.query(Person)
+            .filter(Person.id == person_id, Person.camp_id == camp_id)
+            .first()
+        )
         if not person:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -349,9 +356,14 @@ class HumanIntakeService:
     def update_person_status(
         db: Session,
         person_id: int,
+        camp_id: int,
         payload: UpdatePersonStatusRequest,
     ) -> UpdatePersonStatusResponse:
-        person = db.query(Person).filter(Person.id == person_id).first()
+        person = (
+            db.query(Person)
+            .filter(Person.id == person_id, Person.camp_id == camp_id)
+            .first()
+        )
         if not person:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -399,9 +411,14 @@ class HumanIntakeService:
     def create_temporary_reassignment(
         db: Session,
         person_id: int,
+        camp_id: int,
         payload: TemporaryReassignmentRequest,
     ) -> TemporaryReassignmentResponse:
-        person = db.query(Person).filter(Person.id == person_id).first()
+        person = (
+            db.query(Person)
+            .filter(Person.id == person_id, Person.camp_id == camp_id)
+            .first()
+        )
         if not person:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -481,8 +498,13 @@ class HumanIntakeService:
     def close_temporary_reassignment(
         db: Session,
         person_id: int,
+        camp_id: int,
     ) -> TemporaryReassignmentResponse:
-        person = db.query(Person).filter(Person.id == person_id).first()
+        person = (
+            db.query(Person)
+            .filter(Person.id == person_id, Person.camp_id == camp_id)
+            .first()
+        )
         if not person:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

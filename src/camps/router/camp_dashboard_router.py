@@ -32,6 +32,9 @@ def get_camp_dashboard(
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> CampDashboardResponse:
+    if camp_id != current_user.camp_id:
+        raise HTTPException(status_code=403, detail="No puedes consultar otro campamento")
+
     if current_user.role_name == ROLE_ADMIN:
         enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_VIEW_DASHBOARD})
     elif current_user.role_name == ROLE_RESOURCES:
@@ -46,7 +49,15 @@ def get_camp_dashboard(
     else:
         raise HTTPException(status_code=403, detail="Rol no autorizado")
 
-    dashboard = CampDashboardService.get_dashboard(db, camp_id, page, person_page, size, internal_page)
+    dashboard = CampDashboardService.get_dashboard(
+        db,
+        camp_id,
+        page,
+        person_page,
+        size,
+        internal_page,
+        sent_transfers_only=current_user.role_name == ROLE_TRAVEL,
+    )
     response.headers["X-Total-Count"] = str(dashboard.inter_camp_resource_total)
     response.headers["X-Total-Count-Internal"] = str(dashboard.internal_total)
     return dashboard
