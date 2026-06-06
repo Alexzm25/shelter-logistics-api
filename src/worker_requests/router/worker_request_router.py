@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
 from src.auth.service.authorization import (
     PERM_APPROVE_REJECT,
     PERM_REQUEST_RESOURCES,
+    PERM_VIEW_WORKER_PAGE,
+    ROLE_ADMIN,
     ROLE_RESOURCES,
     ROLE_WORKER,
     enforce_role_permissions,
@@ -40,7 +42,15 @@ def list_worker_requests(
     if camp_id is None:
         camp_id = current_user.camp_id
 
-    if current_user.role_name == ROLE_RESOURCES:
+    if camp_id != current_user.camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes consultar otro campamento",
+        )
+
+    if current_user.role_name == ROLE_ADMIN:
+        enforce_role_permissions(db, current_user, {ROLE_ADMIN}, {PERM_VIEW_WORKER_PAGE})
+    elif current_user.role_name == ROLE_RESOURCES:
         enforce_role_permissions(db, current_user, {ROLE_RESOURCES}, {PERM_APPROVE_REJECT})
     else:
         enforce_role_permissions(db, current_user, {ROLE_WORKER}, {PERM_REQUEST_RESOURCES})
