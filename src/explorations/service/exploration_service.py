@@ -186,7 +186,7 @@ class ExplorationService:
             AvailableExplorerResponse(
                 id=person.id,
                 full_name=f"{person.name} {person.last_name}",
-                age=person.age,
+                birth_date=person.birth_date,
                 health_status=person.health_status.value,
                 current_status=person.current_status.value,
             )

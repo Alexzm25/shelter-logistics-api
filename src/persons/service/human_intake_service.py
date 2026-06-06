@@ -110,11 +110,10 @@ class HumanIntakeService:
             )
 
         if created_person is None:
-            candidate_age = HumanIntakeService._compute_age(payload.candidate.birth_date)
             created_person = Person(
                 name=payload.candidate.first_name.strip(),
                 last_name=payload.candidate.last_name.strip(),
-                age=candidate_age,
+                birth_date=payload.candidate.birth_date,
                 background_info=payload.candidate.background_info.strip(),
                 weight=payload.candidate.weight,
                 height=payload.candidate.height,
@@ -134,7 +133,7 @@ class HumanIntakeService:
             HumanIntakeService._deactivate_all_active_profession_assignments(db, created_person.id)
             created_person.name = payload.candidate.first_name.strip()
             created_person.last_name = payload.candidate.last_name.strip()
-            created_person.age = HumanIntakeService._compute_age(payload.candidate.birth_date)
+            created_person.birth_date = payload.candidate.birth_date
             created_person.background_info = payload.candidate.background_info.strip()
             created_person.weight = payload.candidate.weight
             created_person.height = payload.candidate.height
@@ -336,7 +335,7 @@ class HumanIntakeService:
 
         person.name = payload.first_name.strip()
         person.last_name = payload.last_name.strip()
-        person.age = HumanIntakeService._compute_age(payload.birth_date)
+        person.birth_date = payload.birth_date
         person.background_info = payload.background_info.strip()
         person.weight = payload.weight
         person.height = payload.height
@@ -550,14 +549,6 @@ class HumanIntakeService:
         return HealthStatusEnum.SANO
 
     @staticmethod
-    def _compute_age(birth_date: date) -> int:
-        today = date.today()
-        years = today.year - birth_date.year
-        if (today.month, today.day) < (birth_date.month, birth_date.day):
-            years -= 1
-        return max(0, years)
-
-    @staticmethod
     def _to_api_health_status(db_status: HealthStatusEnum) -> str:
         return db_status.value
 
@@ -769,7 +760,7 @@ class HumanIntakeService:
             id=person.id,
             first_name=person.name,
             last_name=person.last_name,
-            age=person.age,
+            birth_date=person.birth_date,
             current_status=person.current_status.value,
             health_status=HumanIntakeService._to_api_health_status(person.health_status),
             profession=profession_name or "SIN_ASIGNAR",
@@ -792,7 +783,7 @@ class HumanIntakeService:
             id=person.id,
             first_name=person.name,
             last_name=person.last_name,
-            age=person.age,
+            birth_date=person.birth_date,
             current_status=person.current_status.value,
             health_status=HumanIntakeService._to_api_health_status(person.health_status),
             profession=profession_name or "SIN_ASIGNAR",

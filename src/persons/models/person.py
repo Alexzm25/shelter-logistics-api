@@ -1,6 +1,7 @@
+from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.base import Base
@@ -13,7 +14,7 @@ class Person(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(30), nullable=False)
     last_name: Mapped[str] = mapped_column(String(50), nullable=False)
-    age: Mapped[int] = mapped_column(Integer, nullable=False)
+    birth_date: Mapped[date] = mapped_column(Date, nullable=False)
     background_info: Mapped[str] = mapped_column(Text, nullable=False)
     weight: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     height: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)

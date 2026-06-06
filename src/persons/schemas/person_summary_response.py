@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
@@ -8,7 +9,7 @@ class PersonSummaryResponse(BaseModel):
     id: int
     first_name: str
     last_name: str
-    age: int
+    birth_date: date
     current_status: Literal["TRABAJANDO", "EN EXPLORACIÓN", "TRASLADANDO RECURSOS", "LIBRE"]
     health_status: Literal["SANO", "HERIDO", "ENFERMO", "MUERTO"]
     profession: str

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -32,7 +32,7 @@ def test_approving_quota_shortfall_compensates_inventory(db_session, seed_camp_i
     worker = Person(
         name="Test",
         last_name="Worker",
-        age=30,
+        birth_date=date(1996, 1, 1),
         background_info="Test worker",
         weight=Decimal("70.00"),
         height=Decimal("1.75"),
