@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@cspell/dict-es-es": "^3.0.8",
+    "cspell": "^10.0.1"
+  },
+  "scripts": {
+    "spell": "cspell src/**/*.py tests/**/*.py alembic/**/*.py database/**/*.py *.{json,md,yml,yaml,ini}"
+  }
+}
