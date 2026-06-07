@@ -209,6 +209,17 @@ def reject_request(
     return TransferActionResponse(message="Solicitud rechazada")
 
 
+@router.post("/requests/{request_id}/confirm", response_model=TransferActionResponse)
+def confirm_request(
+    request_id: int,
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> TransferActionResponse:
+    _enforce_transfer_flow_permissions(db, current_user)
+    TransferService.confirm_request(db, current_user.camp_id, request_id)
+    return TransferActionResponse(message="Prestamo confirmado")
+
+
 @router.post("/{request_id}/confirm-departure", response_model=TransferActionResponse)
 def confirm_departure(
     request_id: int,

@@ -325,6 +325,40 @@ class TransferService:
                 )
 
             request.request_status = RequestStatusEnum.APROBADO
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+    @staticmethod
+    def confirm_request(db: Session, current_camp_id: int, request_id: int) -> None:
+        request = (
+            db.query(TransferRequest)
+            .filter(
+                TransferRequest.id == request_id,
+                TransferRequest.to_camp_id == current_camp_id,
+            )
+            .first()
+        )
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Solicitud no encontrada.",
+            )
+
+        if request.request_status != RequestStatusEnum.APROBADO:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La solicitud debe estar aprobada por el campamento proveedor.",
+            )
+
+        if request.transfer_status is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El prestamo ya fue confirmado.",
+            )
+
+        try:
             request.transfer_status = TransferStatusEnum.EN_PREPARACION
             db.commit()
         except Exception:
