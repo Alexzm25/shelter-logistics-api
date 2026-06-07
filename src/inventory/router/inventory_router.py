@@ -8,6 +8,7 @@ from src.auth.schemas.user_profile import UserProfileResponse
 from src.auth.service.authorization import (
     PERM_VIEW_INVENTORY_FULL,
     PERM_VIEW_MEDICINES,
+    PERM_VIEW_MOVEMENTS,
     PERM_VIEW_SEEDS,
     ROLE_ADMIN,
     ROLE_RESOURCES,
@@ -19,6 +20,7 @@ from src.core.database import get_db
 from src.core.realtime_events import inventory_events
 from src.inventory.enums.resource_category_enum import ResourceCategoryEnum
 from src.inventory.schemas import InventoryItemResponse
+from src.inventory.schemas.internal_movement_response import InternalMovementResponse
 from src.inventory.service.inventory_service import InventoryService
 
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
@@ -154,3 +156,35 @@ def get_inventory_by_camp(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Rol no autorizado",
     )
+
+
+@router.get(
+    "/camp/{camp_id}/internal",
+    response_model=list[InternalMovementResponse],
+)
+def get_internal_movements(
+    response: Response,
+    camp_id: int = Path(..., ge=1),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=10, ge=1, le=100),
+    current_user: UserProfileResponse = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db),
+) -> list[InternalMovementResponse]:
+    if camp_id != current_user.camp_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes consultar otro campamento",
+        )
+
+    enforce_role_permissions(
+        db,
+        current_user,
+        {ROLE_ADMIN},
+        {PERM_VIEW_MOVEMENTS},
+    )
+
+    total, items = InventoryService.get_internal_movements_paginated(
+        db, camp_id, page, size
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return items

@@ -4,7 +4,10 @@ from src.camps.models.camp import Camp
 from src.core.inventory_utils import resolve_alert_level
 from src.inventory.enums.resource_category_enum import ResourceCategoryEnum
 from src.inventory.schemas.inventory_item_response import InventoryItemResponse
+from src.inventory.schemas.internal_movement_response import InternalMovementResponse
 from src.inventory.models import Inventory, InventoryResource, Resource
+from src.inventory.models.inventory_movement import InventoryMovement
+from src.inventory.enums.movement_type_enum import MovementTypeEnum
 
 class InventoryService:
 
@@ -71,6 +74,48 @@ class InventoryService:
                     minimum_stock_level=inventory_resource.minimum_stock_level,
                     category=resource.category.value,
                     alert_level=alert_level,
+                )
+            )
+
+        return total, items
+
+    @staticmethod
+    def get_internal_movements_paginated(
+        db: Session,
+        camp_id: int,
+        page: int = 1,
+        size: int = 10,
+    ) -> tuple[int, list[InternalMovementResponse]]:
+        base_query = (
+            db.query(InventoryMovement, Resource)
+            .join(InventoryResource, InventoryResource.id == InventoryMovement.inventory_resource_id)
+            .join(Inventory, Inventory.id == InventoryResource.inventory_id)
+            .join(Resource, Resource.id == InventoryResource.resource_id)
+            .filter(
+                Inventory.camp_id == camp_id,
+                InventoryMovement.movement_type == MovementTypeEnum.SALIDA,
+            )
+        )
+
+        total = base_query.count()
+
+        rows = (
+            base_query
+            .order_by(InventoryMovement.created_at.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+            .all()
+        )
+
+        items: list[InternalMovementResponse] = []
+        for movement, resource in rows:
+            items.append(
+                InternalMovementResponse(
+                    id=movement.id,
+                    created_at=movement.created_at,
+                    quantity=movement.quantity,
+                    resource_name=resource.name,
+                    resource_category=resource.category.value if hasattr(resource.category, 'value') else resource.category,
                 )
             )
 
