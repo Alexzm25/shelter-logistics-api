@@ -17,6 +17,10 @@ from src.production.service.production_scheduler import (
     start_production_scheduler,
     stop_production_scheduler,
 )
+from src.production.service.ration_scheduler import (
+    start_ration_scheduler,
+    stop_ration_scheduler,
+)
 from src.worker_requests import router as worker_request_router
 
 app = FastAPI(title="shelter-logistics-api")
@@ -26,6 +30,7 @@ app = FastAPI(title="shelter-logistics-api")
 def setup_cloudinary() -> None:
     configure_cloudinary()
     start_production_scheduler()
+    start_ration_scheduler()
 
 
 @app.on_event("shutdown")
@@ -33,6 +38,7 @@ async def shutdown_httpx() -> None:
     from src.ai.service.groq_evaluation_service import GroqEvaluationService
 
     await stop_production_scheduler()
+    await stop_ration_scheduler()
     await GroqEvaluationService.close_client()
 
 
