@@ -68,6 +68,7 @@ class InventoryService:
             items.append(
                 InventoryItemResponse(
                     id=inventory_resource.id,
+                    resource_id=resource.id,
                     code=f"RES-{resource.id:03d}",
                     name=resource.name,
                     stock=inventory_resource.quantity,

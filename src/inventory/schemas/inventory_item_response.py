@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class InventoryItemResponse(BaseModel):
     id: int
+    resource_id: int
     code: str
     name: str
     stock: int

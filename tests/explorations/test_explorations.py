@@ -15,6 +15,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
+from src.main import app
 
 
 def _make_mock_user() -> UserProfileResponse:
@@ -26,6 +27,17 @@ def _make_mock_user() -> UserProfileResponse:
         profession_name="EXPLORADOR",
         role_name="ADMINISTRADOR SISTEMA",
     )
+
+
+def test_return_exploration_route_is_registered():
+    routes = [
+        route
+        for route in app.routes
+        if getattr(route, "path", None) == "/explorations/return"
+    ]
+
+    assert routes, "POST /explorations/return route is not registered"
+    assert any("POST" in getattr(route, "methods", set()) for route in routes)
 
 
 def test_explorations_default_pagination(test_client, seed_camp_id):

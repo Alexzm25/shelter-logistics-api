@@ -10,6 +10,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from src.auth.schemas.user_profile import UserProfileResponse
+from src.inventory.schemas.inventory_item_response import InventoryItemResponse
 
 
 def _make_mock_user() -> UserProfileResponse:
@@ -61,6 +62,22 @@ def test_inventory_pagination_custom_size(test_client, seed_camp_id):
     items = response.json()
     assert len(items) <= 5, f"Expected ≤ 5 items, got {len(items)}"
     assert "x-total-count" in response.headers
+
+
+def test_inventory_item_schema_includes_inventory_and_resource_ids():
+    item = InventoryItemResponse(
+        id=10,
+        resource_id=3,
+        code="RES-003",
+        name="Agua",
+        stock=20,
+        minimum_stock_level=5,
+        category="BEBIDAS",
+        alert_level="normal",
+    )
+
+    assert item.model_dump()["id"] == 10
+    assert item.model_dump()["resource_id"] == 3
 
 
 def test_inventory_pagination_empty_page(test_client, seed_camp_id):

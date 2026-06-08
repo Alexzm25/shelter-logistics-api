@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
@@ -29,6 +30,8 @@ from src.persons.enums import CurrentStatusEnum, HealthStatusEnum
 from src.persons.models.person import Person
 from src.persons.models.profession import Profession
 from src.persons.models.profession_assignment import ProfessionAssignment
+
+logger = logging.getLogger(__name__)
 
 
 class ExplorationService:
@@ -315,6 +318,20 @@ class ExplorationService:
             payload.exploration_id,
             camp_id,
         )
+        logger.info(
+            "Returning exploration id=%s status=%s start_date=%s return_date=%s payload=%s",
+            exploration.id,
+            exploration.exploration_status.value,
+            exploration.start_date,
+            exploration.return_date,
+            payload.model_dump(),
+        )
+        today = ExplorationService._today_utc()
+        if ExplorationService._has_not_started(exploration, today):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se puede retornar una expedición que no ha comenzado",
+            )
 
         loot_records: list[ExplorationLoot] = []
         movement_records: list[InventoryMovement] = []
@@ -349,6 +366,13 @@ class ExplorationService:
 
         exploration.exploration_status = ExplorationStatusEnum.COMPLETADA
         exploration.return_date = datetime.now(timezone.utc)
+        logger.info(
+            "Exploration return date assigned id=%s status=%s start_date=%s return_date=%s",
+            exploration.id,
+            exploration.exploration_status.value,
+            exploration.start_date,
+            exploration.return_date,
+        )
 
         members = (
             db.query(ExplorationMember)
@@ -395,6 +419,12 @@ class ExplorationService:
             exploration_id,
             camp_id,
         )
+        today = ExplorationService._today_utc()
+        if not ExplorationService._has_not_started(exploration, today):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Solo se puede cancelar una expedición antes de su fecha de salida",
+            )
 
         exploration.exploration_status = ExplorationStatusEnum.CANCELADA
         exploration.return_date = datetime.now(timezone.utc)
@@ -449,6 +479,14 @@ class ExplorationService:
             )
 
         return exploration
+
+    @staticmethod
+    def _today_utc():
+        return datetime.now(timezone.utc).date()
+
+    @staticmethod
+    def _has_not_started(exploration: Exploration, today) -> bool:
+        return exploration.start_date.date() > today
 
     @staticmethod
     def _get_resource(

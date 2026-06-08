@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy.orm import Session
 from src.auth.schemas.user_profile import UserProfileResponse
@@ -27,6 +29,7 @@ from src.explorations.schemas.create_exploration import (
 from src.explorations.schemas.cancel_exploration import CancelExplorationResponse
 from src.explorations.schemas.exploration_list import ExplorationListResponse
 router = APIRouter(prefix="/explorations", tags=["Explorations"])
+logger = logging.getLogger(__name__)
 
 
 def validate_exploration_access(
@@ -192,6 +195,11 @@ def return_exploration(
     db: Session = Depends(get_db),
 ) -> RegisterExplorationLootResponse:
     validate_exploration_access(db, current_user)
+    logger.info(
+        "POST /explorations/return payload=%s exploration_id=%s",
+        payload.model_dump(),
+        payload.exploration_id,
+    )
 
     return ExplorationService.return_exploration(db, payload, current_user.camp_id)
 
