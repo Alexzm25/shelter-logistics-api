@@ -87,3 +87,38 @@ class InventoryEventBroker:
 
 
 inventory_events = InventoryEventBroker()
+
+
+class SystemEventBroker:
+    def __init__(self) -> None:
+        self._subscribers: dict[int, queue.Queue[str]] = {}
+        self._subscriber_ids = count(1)
+        self._lock = threading.Lock()
+
+    def publish(self, event_type: str, data: dict[str, Any]) -> None:
+        message = json.dumps({"type": event_type, "data": data}, separators=(",", ":"))
+        with self._lock:
+            subscribers = list(self._subscribers.values())
+        for subscriber_queue in subscribers:
+            try:
+                subscriber_queue.put_nowait(message)
+            except queue.Full:
+                continue
+
+    def subscribe(self) -> Iterator[str]:
+        subscriber_id = next(self._subscriber_ids)
+        subscriber_queue: queue.Queue[str] = queue.Queue(maxsize=100)
+        with self._lock:
+            self._subscribers[subscriber_id] = subscriber_queue
+        try:
+            while True:
+                try:
+                    yield subscriber_queue.get(timeout=30)
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
+        finally:
+            with self._lock:
+                self._subscribers.pop(subscriber_id, None)
+
+
+system_events = SystemEventBroker()

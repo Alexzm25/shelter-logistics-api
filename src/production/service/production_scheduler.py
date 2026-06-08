@@ -3,6 +3,7 @@ import logging
 from contextlib import suppress
 
 from src.core.database import SessionLocal
+from src.core.realtime_events import system_events
 from src.production.service.production_service import ProductionService
 
 
@@ -30,6 +31,11 @@ async def _production_scheduler_loop() -> None:
                 len(audits),
                 ProductionService.server_now().isoformat(),
             )
+            if audits:
+                system_events.publish("production", {
+                    "camps_produced": len(audits),
+                    "executed_at": ProductionService.server_now().isoformat(),
+                })
         except Exception:
             db.rollback()
             logger.exception("Automatic production failed")

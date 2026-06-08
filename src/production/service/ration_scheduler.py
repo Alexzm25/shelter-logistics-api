@@ -3,6 +3,7 @@ import logging
 from contextlib import suppress
 
 from src.core.database import SessionLocal
+from src.core.realtime_events import system_events
 from src.production.service.ration_service import RationService
 
 
@@ -30,6 +31,13 @@ async def _ration_scheduler_loop() -> None:
                 len(logs),
                 RationService.server_now().isoformat(),
             )
+            if logs:
+                total_fed = sum(log.persons_fed for log in logs)
+                system_events.publish("ration", {
+                    "camps_fed": len(logs),
+                    "persons_fed": total_fed,
+                    "executed_at": RationService.server_now().isoformat(),
+                })
         except Exception:
             db.rollback()
             logger.exception("Daily ration distribution failed")
