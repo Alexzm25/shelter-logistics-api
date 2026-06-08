@@ -383,10 +383,13 @@ VALUES (
 );
 
 INSERT INTO "transfer_participants" ("person_id", "request_id", "is_transfer_active")
-VALUES (
-    (SELECT id FROM person WHERE id_card = 'TEST-SEED-001' LIMIT 1),
+SELECT (SELECT id FROM person WHERE id_card = 'TEST-SEED-001' LIMIT 1),
     (SELECT id FROM transfer_request WHERE created_at = '2025-03-04 08:00:00+00' LIMIT 1),
     FALSE
+WHERE NOT EXISTS (
+    SELECT 1 FROM "transfer_participants" tp
+    WHERE tp.person_id = (SELECT id FROM person WHERE id_card = 'TEST-SEED-001' LIMIT 1)
+      AND tp.request_id = (SELECT id FROM transfer_request WHERE created_at = '2025-03-04 08:00:00+00' LIMIT 1)
 );
 
 -- [PER-2] Caolin → Azulejo | APROBADO + DE CAMINO | Valentina Cruz
@@ -400,10 +403,13 @@ VALUES (
 );
 
 INSERT INTO "transfer_participants" ("person_id", "request_id", "is_transfer_active")
-VALUES (
-    (SELECT id FROM person WHERE id_card = 'TEST-SEED-004' LIMIT 1),
+SELECT (SELECT id FROM person WHERE id_card = 'TEST-SEED-004' LIMIT 1),
     (SELECT id FROM transfer_request WHERE created_at = '2025-04-11 10:00:00+00' LIMIT 1),
     TRUE
+WHERE NOT EXISTS (
+    SELECT 1 FROM "transfer_participants" tp
+    WHERE tp.person_id = (SELECT id FROM person WHERE id_card = 'TEST-SEED-004' LIMIT 1)
+      AND tp.request_id = (SELECT id FROM transfer_request WHERE created_at = '2025-04-11 10:00:00+00' LIMIT 1)
 );
 
 -- [PER-3] Fayenza → Caolin | PENDIENTE | solicitud de refuerzo médico
