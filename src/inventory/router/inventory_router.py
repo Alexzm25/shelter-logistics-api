@@ -6,12 +6,14 @@ from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
 from src.auth.service.authorization import (
+    PERM_REGISTER_LOOT,
     PERM_VIEW_INVENTORY_FULL,
     PERM_VIEW_MEDICINES,
     PERM_VIEW_MOVEMENTS,
     PERM_VIEW_SEEDS,
     ROLE_ADMIN,
     ROLE_RESOURCES,
+    ROLE_TRAVEL,
     ROLE_WORKER,
     enforce_role_permissions,
     get_current_user_from_token,
@@ -106,6 +108,19 @@ def get_inventory_by_camp(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No puedes consultar otro campamento",
         )
+
+    if current_user.role_name == ROLE_TRAVEL:
+        enforce_role_permissions(
+            db,
+            current_user,
+            {ROLE_TRAVEL},
+            {PERM_REGISTER_LOOT},
+        )
+        total, items = InventoryService.get_inventory_by_camp_paginated(
+            db, camp_id, page, size, category
+        )
+        response.headers["X-Total-Count"] = str(total)
+        return items
 
     if current_user.role_name in {ROLE_ADMIN, ROLE_RESOURCES}:
         enforce_role_permissions(
