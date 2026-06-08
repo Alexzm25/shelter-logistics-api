@@ -419,12 +419,6 @@ class ExplorationService:
             exploration_id,
             camp_id,
         )
-        today = ExplorationService._today_utc()
-        if not ExplorationService._has_not_started(exploration, today):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Solo se puede cancelar una expedición antes de su fecha de salida",
-            )
 
         exploration.exploration_status = ExplorationStatusEnum.CANCELADA
         exploration.return_date = datetime.now(timezone.utc)

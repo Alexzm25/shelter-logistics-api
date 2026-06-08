@@ -8,6 +8,7 @@ Validates:
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from sqlalchemy import event
@@ -15,6 +16,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
+from src.explorations.enums import ExplorationStatusEnum
+from src.explorations.models.exploration import Exploration
+from src.explorations.service.exploration_service import ExplorationService
 from src.main import app
 
 
@@ -140,3 +144,30 @@ def test_explorations_query_count(test_client, db_session: Session, seed_camp_id
         f"Query count {query_count['count']} exceeds limit of 5. "
         f"N+1 member count queries may not be batch-pre-fetched."
     )
+
+
+def test_cancel_started_exploration(db_session: Session, seed_camp_id):
+    exploration = Exploration(
+        start_date=datetime.now(timezone.utc) - timedelta(days=1),
+        return_date=None,
+        exploration_status=ExplorationStatusEnum.EN_PROCESO,
+        camp_id=seed_camp_id,
+        extra_days=0,
+        ration_per_person=1,
+        max_extra_days=20,
+        estimated_days=1,
+    )
+    db_session.add(exploration)
+    db_session.commit()
+    db_session.refresh(exploration)
+
+    response = ExplorationService.cancel_exploration(
+        db_session,
+        exploration.id,
+        seed_camp_id,
+    )
+
+    db_session.refresh(exploration)
+    assert response.exploration_id == exploration.id
+    assert exploration.exploration_status == ExplorationStatusEnum.CANCELADA
+    assert exploration.return_date is not None
