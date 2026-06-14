@@ -15,7 +15,7 @@ from src.persons.models.person import Person
 from src.production.models.daily_ration_log import DailyRationLog
 
 SERVER_TIMEZONE = "America/Costa_Rica"
-RATION_RUN_TIME = time(hour=20, minute=30)
+RATION_RUN_TIME = time(hour=21, minute=33)
 
 logger = logging.getLogger(__name__)
 

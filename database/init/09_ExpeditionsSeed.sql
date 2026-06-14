@@ -1,9 +1,19 @@
 -- =========================================================
 -- EXPEDITIONS SEED
 -- 18 expediciones para Campamento Caolin (8 COMPLETADA,
--- 4 CANCELADA, 3 EN PROCESO) para probar paginación.
+-- 4 CANCELADA, 3 EN PROCESO) para probar paginacion.
 -- Depende de: 03_CampsSeed.sql, 08_TransfersSeed.sql
+-- Idempotente: limpia datos previos del campamento antes de insertar.
 -- =========================================================
+
+-- Limpiar datos previos de expediciones de Campamento Caolin
+DELETE FROM exploration_loot WHERE exploration_id IN (
+  SELECT id FROM exploration WHERE camp_id = (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1)
+);
+DELETE FROM exploration_member WHERE exploration_id IN (
+  SELECT id FROM exploration WHERE camp_id = (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1)
+);
+DELETE FROM exploration WHERE camp_id = (SELECT id FROM camp WHERE name = 'Campamento Caolin' LIMIT 1);
 
 -- -------------------------------------------------------
 -- EXPEDICIONES COMPLETADAS (con loot y miembros)

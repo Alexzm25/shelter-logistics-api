@@ -27,6 +27,7 @@ from src.persons.schemas.human_intake_schemas import (
     EvaluationResponse,
     PersonSummaryResponse,
     ProfessionOptionResponse,
+    HealthSummaryResponse,
     TemporaryReassignmentRequest,
     TemporaryReassignmentResponse,
     UpdatePersonRequest,
@@ -233,11 +234,17 @@ class HumanIntakeService:
         return HumanIntakeService._to_person_summary(db, people[0])
 
     @staticmethod
-    def get_dashboard(db: Session, camp_id: int) -> DashboardResponse:
-        people = (
+    def get_dashboard(db: Session, camp_id: int, page: int = 1, size: int = 10) -> tuple[int, DashboardResponse]:
+        base_query = (
             db.query(Person)
             .filter(Person.camp_id == camp_id, Person.is_active.is_(True))
-            .order_by(Person.id.desc())
+        )
+        total_people = base_query.count()
+
+        people = (
+            base_query.order_by(Person.id.desc())
+            .offset((page - 1) * size)
+            .limit(size)
             .all()
         )
         logs = db.query(AILog).filter(AILog.camp_id == camp_id).order_by(AILog.id.desc()).all()
@@ -279,7 +286,32 @@ class HumanIntakeService:
         ]
         logs_response = [HumanIntakeService._to_ai_log_summary(log) for log in logs]
 
-        return DashboardResponse(people=people_response, ai_logs=logs_response)
+        health_summary = HumanIntakeService._get_health_summary(db, camp_id)
+
+        return total_people, DashboardResponse(
+            people=people_response,
+            ai_logs=logs_response,
+            total_people=total_people,
+            health_summary=health_summary,
+        )
+
+    @staticmethod
+    def _get_health_summary(db: Session, camp_id: int) -> HealthSummaryResponse:
+        from sqlalchemy import func
+        rows = (
+            db.query(Person.health_status, func.count(Person.id))
+            .filter(Person.camp_id == camp_id, Person.is_active.is_(True))
+            .group_by(Person.health_status)
+            .all()
+        )
+        counts: dict[str, int] = {row[0].value if hasattr(row[0], 'value') else row[0]: row[1] for row in rows}
+        return HealthSummaryResponse(
+            total=sum(counts.values()),
+            healthy=counts.get("SANO", 0),
+            injured=counts.get("HERIDO", 0),
+            sick=counts.get("ENFERMO", 0),
+            dead=counts.get("MUERTO", 0),
+        )
 
     @staticmethod
     def get_available_people_for_profession(db: Session, profession_name: str, camp_id: int) -> list[PersonSummaryResponse]:

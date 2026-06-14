@@ -1,7 +1,7 @@
 from typing import Literal
 from datetime import date
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from src.auth.schemas.user_profile import UserProfileResponse
@@ -39,6 +39,9 @@ router = APIRouter(prefix="/human", tags=["Human Intake"])
 
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_dashboard(
+    response: Response,
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=10, ge=1, le=100),
     current_user: UserProfileResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
 ) -> DashboardResponse:
@@ -58,7 +61,9 @@ def get_dashboard(
             detail="Rol no autorizado",
         )
 
-    return HumanIntakeService.get_dashboard(db, current_user.camp_id)
+    total, result = HumanIntakeService.get_dashboard(db, current_user.camp_id, page=page, size=size)
+    response.headers["X-Total-Count"] = str(total)
+    return result
 
 
 @router.get("/professions", response_model=list[ProfessionOptionResponse])

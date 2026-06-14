@@ -14,6 +14,7 @@ from .profession_option_response import ProfessionOptionResponse
 from .person_summary_response import PersonSummaryResponse
 from .ai_log_summary_response import AILogSummaryResponse
 from .dashboard_response import DashboardResponse
+from .health_summary_response import HealthSummaryResponse
 from .register_candidate_response import RegisterCandidateResponse
 from .update_person_request import UpdatePersonRequest
 from .update_person_response import UpdatePersonResponse
@@ -32,6 +33,7 @@ __all__ = [
     "PersonSummaryResponse",
     "AILogSummaryResponse",
     "DashboardResponse",
+    "HealthSummaryResponse",
     "RegisterCandidateResponse",
     "UpdatePersonRequest",
     "UpdatePersonResponse",
